@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Professional WebGL Piano</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script type="text/javascript">
+        // MIDI Parser 類別
+        class MidiParser {
+            static parse(input) {
+                const dv = new DataView(input.buffer);
+                let position = 0;
+
+                const header = {
+                    type: String.fromCharCode(...input.slice(0, 4)),
+                    length: dv.getUint32(4),
+                    format: dv.getUint16(8),
+                    tracksCount: dv.getUint16(10),
+                    timeDivision: dv.getUint16(12)
+                };
+
+                if (header.type !== 'MThd') {
+                    throw new Error('Not a valid MIDI file');
+                }
+
+                position = 14;
+                const tracks = [];
+
+                for (let i = 0; i < header.tracksCount; i++) {
+                    const trackHeader = String.fromCharCode(...input.slice(position, position + 4));
+                    if (trackHeader !== 'MTrk') {
+                        throw new Error('Invalid track header');
+                    }
+
+                    const trackLength = dv.getUint32(position + 4);
+                    position += 8;
+
+                    const trackEnd = position + trackLength;
+                    const events = [];
+                    let runningStatus = 0;
+
+                    while (position < trackEnd) {
+                        let deltaTime = 0;
+                        let byte = input[position++];
+
+                        while (byte & 0x80) {
+                            deltaTime = (deltaTime << 7) | (byte & 0x7F);
+                            byte = input[position++];
+                        }
+                        deltaTime = (deltaTime << 7) | byte;
+
+                        byte = input[position++];
+                        let eventType = byte;
+
+                        if ((byte & 0x80) === 0) {
+                            eventType = runningStatus;
+                            position--;
+                        } else {
+                            runningStatus = eventType;
+                        }
+
+                        const status = eventType >> 4;
+                        const channel = eventType & 0x0F;
+
+                        let event = {
+                            deltaTime: deltaTime,
+                            channel: channel
+                        };
+
+                        switch (status) {
+                            case 0x8:
+                            case 0x9:
+                                event.type = status;
+                                event.data = [
+                                    input[position++],
+                                    input[position++]
+                                ];
+                                events.push(event);
+                                break;
+
+                            case 0xB:
+                            case 0xE:
+                                position += 2;
+                                break;
+
+                            case 0xC:
+                            case 0xD:
+                                position += 1;
+                                break;
+
+                            case 0xF:
+                                if (channel === 0xF) {
+                                    const metaType = input[position++];
+                                    const length = input[position++];
+                                    // 處理 tempo 事件
+                                    if (metaType === 0x51 && length === 3) {
+                                        const tempo = (input[position] << 16) |
+                                            (input[position + 1] << 8) |
+                                            input[position + 2];
+                                        events.push({
+                                            type: 'tempo',
+                                            tempo: tempo,
+                                            deltaTime: deltaTime
+                                        });
+                                    }
+                                    position += length;
+                                } else {
+                                    while (input[position++] !== 0xF7);
+                                }
+                                break;
+                        }
+                    }
+
+                    tracks.push(events);
+                }
+
+                return {
+                    header: header,
+                    track: tracks
+                };
+            }
+        }
+    </script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(15, 15, 15, 0.95);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        #controls input[type="file"] {
+            display: none;
+        }
+
+        .btn,
+        #file-label {
+            background: #1a1a1a;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #999;
+            padding: 6px;
+            margin: 0 3px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn .material-icons {
+            font-size: 18px;
+        }
+
+        .btn:hover {
+            background: #262626;
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .btn:disabled {
+            background: #141414;
+            border-color: rgba(255, 255, 255, 0.08);
+            color: #444;
+            cursor: default;
+        }
+
+        #file-label {
+            background: #1a1a1a;
+        }
+
+        #status {
+            position: fixed;
+            Top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #666;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            padding: 8px 16px;
+            background: rgba(15, 15, 15, 0.95);
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        #progress-container {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 200px;
+            background: rgba(15, 15, 15, 0.95);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        #progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #1a1a1a;
+            border-radius: 3px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+
+        #progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #2b5fb4;
+            transition: width 0.1s linear;
+        }
+
+        #progress-text {
+            color: #666;
+            margin-top: 6px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 11px;
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="controls">
+        <button id="file-btn" class="btn">
+            <span class="material-icons">music_note</span>
+        </button>
+        <input type="file" id="midi-file" accept=".mid,.midi" style="display: none;">
+        <button id="play-btn" class="btn" disabled>
+            <span class="material-icons">play_arrow</span>
+        </button>
+        <button id="stop-btn" class="btn" disabled>
+            <span class="material-icons">stop</span>
+        </button>
+        <div id="status"></div>
+    </div>
+
+    <div id="progress-container">
+        <div id="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+        <div id="progress-text">00:00 / 00:00</div>
+    </div>
+
+    <script>
+        // Three.js 場景設置
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // 進度條創建代碼
+        const progressBar = document.querySelector('#progress-bar');
+        const progressFill = document.querySelector('#progress-fill');
+        const progressText = document.querySelector('#progress-text');
+
+        let isDraggingProgress = false;
+
+        function updatePlaybackPosition(e) {
+            if (!midiData) return;
+
+            const rect = progressBar.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const width = rect.width;
+            const percentage = Math.min(Math.max(x / width, 0), 1);
+            const newTime = totalDuration * percentage;
+
+            // 重建事件列表
+            currentEvents = [];
+            const ticksPerBeat = midiData.header.timeDivision;
+            let currentTempo = 500000;
+            let microsecondsPerTick = currentTempo / ticksPerBeat;
+
+            midiData.track.forEach((track, trackIndex) => {
+                let currentTime = 0;
+                track.forEach(event => {
+                    const deltaTime = (event.deltaTime * microsecondsPerTick) / 1000000;
+                    currentTime += deltaTime;
+
+                    if (event.type === 'tempo') {
+                        currentTempo = event.tempo;
+                        microsecondsPerTick = currentTempo / ticksPerBeat;
+                    }
+                    else if (event.type === 8 || event.type === 9) {
+                        currentEvents.push({
+                            time: currentTime,
+                            noteNumber: event.data[0],
+                            velocity: event.data[1],
+                            type: event.type,
+                            trackIndex: trackIndex
+                        });
+                    }
+                });
+            });
+
+            currentEvents.sort((a, b) => a.time - b.time);
+            currentEvents = currentEvents.filter(event => event.time >= newTime);
+
+            // 停止所有當前聲音
+            activeNotes.forEach((noteData, noteNumber) => {
+                stopNote(noteNumber);
+            });
+            activeNotes.clear();
+
+            startTime = Tone.now() - newTime;
+            progressFill.style.width = `${percentage * 100}%`;
+            progressText.textContent = `${formatTime(newTime)} / ${formatTime(totalDuration)}`;
+
+            // 更新播放狀態
+            isPlaying = true;
+            isPaused = false;
+            playBtn.disabled = false;
+            stopBtn.disabled = false;
+            playBtn.querySelector('.material-icons').textContent = 'pause';
+
+            requestAnimationFrame(updatePlayback);
+        }
+
+        progressBar.addEventListener('mousedown', (e) => {
+            if (!midiData) return;
+            isDraggingProgress = true;
+            updatePlaybackPosition(e);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDraggingProgress) {
+                updatePlaybackPosition(e);
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDraggingProgress = false;
+        });
+
+        progressBar.addEventListener('click', (e) => {
+            if (!midiData) return;
+            updatePlaybackPosition(e);
+        });
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 射線檢測器定義
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let isMouseOverKeys = false;
+        let isDragging = false;
+
+        // 攝影機和控制器設置
+        camera.position.set(0, 30, 30);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 20;
+        controls.maxDistance = 50;
+        controls.maxPolarAngle = Math.PI / 2;
+
+        // 光源設置
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        scene.add(ambientLight);
+
+        const mainLight = new THREE.SpotLight(0xffffff, 1);
+        mainLight.position.set(15, 40, 15);
+        mainLight.angle = Math.PI / 4;
+        mainLight.penumbra = 0.5;
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        scene.add(mainLight);
+
+        const fillLight = new THREE.DirectionalLight(0x404040, 0.4);
+        fillLight.position.set(-15, 10, -15);
+        scene.add(fillLight);
+
+        // 材質定義
+        const whiteMaterial = new THREE.MeshStandardMaterial({
+            color: 0xf5f5f5,
+            metalness: 0.1,
+            roughness: 0.2
+        });
+
+        const blackMaterial = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            metalness: 0.2,
+            roughness: 0.1
+        });
+
+        const highlightMaterial = new THREE.MeshStandardMaterial({
+            color: 0x74b9ff,
+            metalness: 0.3,
+            roughness: 0.2,
+            emissive: 0x74b9ff,
+            emissiveIntensity: 0.3,
+            transparent: true,
+            opacity: 0.9
+        });
+
+        const pianoCaseMaterial = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            metalness: 0.7,
+            roughness: 0.2
+        });
+
+        // 添加光暈效果創建函數
+        function createKeyGlow(key) {
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x74b9ff,
+                transparent: true,
+                opacity: 0.5
+            });
+
+            const glowMesh = key.clone();
+            glowMesh.scale.multiplyScalar(1.05);
+            glowMesh.material = glowMaterial;
+            key.userData.glowMesh = glowMesh; // 存儲在原始鍵的 userData 中
+            scene.add(glowMesh);
+            glowMesh.visible = false;
+            return glowMesh;
+        }
+
+        // 創建地板
+        const floorGeometry = new THREE.PlaneGeometry(64, 16);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x202020 });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        const keyMap = new Map();
+
+        // 白鍵計算 
+        const whiteKeyGeometry = new THREE.BoxGeometry(0.8, 1, 5);
+        const whiteNotes = [
+            24, 26, 28, 29, 31, 33, 35,  // C1 to B1
+            36, 38, 40, 41, 43, 45, 47,  // C2 to B2
+            48, 50, 52, 53, 55, 57, 59,  // C3 to B3
+            60, 62, 64, 65, 67, 69, 71,  // C4 to B4 (中央 C 開始)
+            72, 74, 76, 77, 79, 81, 83,  // C5 to B5
+            84, 86, 88, 89, 91, 93, 95,  // C6 to B6
+            96, 98, 100, 101, 103, 105, 107,  // C7 to B7
+            108  // C8
+        ];
+
+        for (let i = 0; i < whiteNotes.length; i++) {
+            const material = whiteMaterial.clone();
+            const key = new THREE.Mesh(whiteKeyGeometry, material);
+            key.position.x = (i - whiteNotes.length / 2) * 0.9;
+            key.position.y = 0;
+            key.castShadow = true;
+            key.receiveShadow = true;
+
+            key.userData = {
+                noteNumber: whiteNotes[i],
+                isBlack: false,
+                originalMaterial: material
+            };
+            keyMap.set(key.userData.noteNumber, key);
+            scene.add(key);
+        }
+
+        // 黑鍵計算
+        const blackKeyGeometry = new THREE.BoxGeometry(0.5, 1.2, 3.5);
+        const blackNotes = [
+            25, 27, 30, 32, 34,  // C#1 to B#1
+            37, 39, 42, 44, 46,  // C#2 to B#2
+            49, 51, 54, 56, 58,  // C#3 to B#3
+            61, 63, 66, 68, 70,  // C#4 to B#4
+            73, 75, 78, 80, 82,  // C#5 to B#5
+            85, 87, 90, 92, 94,  // C#6 to B#6 
+            97, 99, 102, 104, 106  // C#7 to B#7
+        ];
+
+        const blackKeyPattern = [1, 1, 0, 1, 1, 1, 0];  // C C# D D# E F F# G G# A A# B 的模式
+        let blackKeyIndex = 0;
+
+        for (let i = 0; i < whiteNotes.length - 1; i++) {
+            const patternIndex = i % 7;
+            if (blackKeyPattern[patternIndex]) {
+                const material = blackMaterial.clone();
+                const key = new THREE.Mesh(blackKeyGeometry, material);
+                const offset = (i - whiteNotes.length / 2) * 0.9 + 0.45;
+                key.position.set(offset, 0.1, -0.75);
+                key.castShadow = true;
+                key.receiveShadow = true;
+                key.userData = {
+                    noteNumber: blackNotes[blackKeyIndex],
+                    isBlack: true,
+                    originalMaterial: material
+                };
+                keyMap.set(key.userData.noteNumber, key);
+                scene.add(key);
+                blackKeyIndex++;
+            }
+        }
+
+        // 為每個琴鍵創建光暈
+        keyMap.forEach((key) => {
+            createKeyGlow(key);
+        });
+
+        const samplers = {
+            piano: new Tone.Sampler({
+                urls: {
+                    "C4": "C4.mp3",
+                    "D#4": "Ds4.mp3",
+                    "F#4": "Fs4.mp3",
+                    "A4": "A4.mp3",
+                },
+                baseUrl: "https://tonejs.github.io/audio/salamander/",
+                attack: 0.1,
+                release: 0.8,
+                volume: -8,
+                onload: () => {
+                    console.log('Piano samples loaded');
+                }
+            }).toDestination(),
+            // 未來可以添加更多音色
+        };
+
+        // 添加混響效果
+        const reverb = new Tone.Reverb({
+            decay: 2.5,
+            wet: 0.2
+        }).toDestination();
+
+        // 連接效果器
+        Object.values(samplers).forEach(sampler => {
+            sampler.connect(reverb);
+        });
+
+        // MIDI 播放相關
+        let midiData = null;
+        let isPlaying = false;
+        let isPaused = false;
+        let startTime = 0;
+        let totalDuration = 0;
+        let activeNotes = new Map();
+        let currentEvents = [];
+
+        const playBtn = document.getElementById('play-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const fileInput = document.getElementById('midi-file');
+        const statusDiv = document.getElementById('status');
+
+        async function startNote(noteNumber, velocity = 0.7, trackIndex = 0) {
+            const key = keyMap.get(noteNumber);
+            if (!key) return;
+
+            const noteName = Tone.Frequency(noteNumber, "midi").toNote();
+
+            // 選擇音色（目前都用鋼琴）
+            const sampler = samplers.piano;
+
+            // 播放音符
+            const volume = Tone.gainToDb(velocity / 127);
+            sampler.triggerAttack(noteName, Tone.now(), velocity);
+
+            // 視覺效果
+            const originalY = key.userData.isBlack ? 0.1 : 0;
+            const pressDepth = key.userData.isBlack ? 0.2 : 0.3;
+            const pressIntensity = velocity / 127;
+
+            // 平滑的下沉動畫
+            const duration = 100;
+            const startTime = Date.now();
+
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 2);
+                key.position.y = originalY - (pressDepth * pressIntensity * eased);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            }
+
+            animate();
+
+            // 顯示光暈效果
+            if (key.userData.glowMesh) {
+                key.userData.glowMesh.visible = true;
+                key.userData.glowMesh.position.copy(key.position);
+                key.userData.glowMesh.position.y = key.position.y + 0.01;
+            }
+
+            key.material = highlightMaterial;
+
+            activeNotes.set(noteNumber, {
+                key,
+                noteName,
+                velocity,
+                originalY,
+                trackIndex,
+                sampler  // 保存使用的音色
+            });
+        }
+
+        function stopNote(noteNumber) {
+            const noteData = activeNotes.get(noteNumber);
+            if (!noteData) return;
+
+            const { key, noteName, originalY, sampler } = noteData;
+
+            // 停止聲音
+            sampler.triggerRelease(noteName, '+0.1');
+
+            // 平滑的回彈動畫
+            const duration = 200;
+            const startTime = Date.now();
+            const startY = key.position.y;
+
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = Math.pow(2, -10 * progress) *
+                    Math.sin((progress - 0.1) * 5 * Math.PI) + 1;
+
+                key.position.y = startY + (originalY - startY) * eased;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    key.position.y = originalY;
+                }
+            }
+
+            animate();
+
+            if (key.userData.glowMesh) {
+                key.userData.glowMesh.visible = false;
+            }
+
+            key.material = key.userData.originalMaterial;
+            activeNotes.delete(noteNumber);
+        }
+
+
+        window.addEventListener('load', async () => {
+            await Tone.start();
+            Tone.context.lookAhead = 0.1; // 降低音訊延遲
+            Tone.Transport.bpm.value = 120;
+        });
+
+        function startPlayback() {
+            if (!midiData) return;
+
+            if (isPaused) {
+                // 從暫停恢復
+                isPaused = false;
+                startTime = Tone.now() - (totalDuration * (parseFloat(progressFill.style.width) / 100));
+            } else {
+                // 開始新的播放
+                isPlaying = true;
+                startTime = Tone.now();
+                activeNotes.clear();
+
+                // 重建事件列表
+                currentEvents = [];
+                let maxTime = 0;
+                const ticksPerBeat = midiData.header.timeDivision;
+                let currentTempo = 500000;
+                let microsecondsPerTick = currentTempo / ticksPerBeat;
+
+                midiData.track.forEach((track, trackIndex) => {
+                    let currentTime = 0;
+                    track.forEach(event => {
+                        currentTime += (event.deltaTime * microsecondsPerTick) / 1000000;
+
+                        if (event.type === 'tempo') {
+                            currentTempo = event.tempo;
+                            microsecondsPerTick = currentTempo / ticksPerBeat;
+                        }
+                        else if (event.type === 8 || event.type === 9) {
+                            maxTime = Math.max(maxTime, currentTime);
+                            currentEvents.push({
+                                time: currentTime,
+                                noteNumber: event.data[0],
+                                velocity: event.data[1],
+                                type: event.type,
+                                trackIndex: trackIndex
+                            });
+                        }
+                    });
+                });
+
+                totalDuration = maxTime;
+                currentEvents.sort((a, b) => a.time - b.time);
+            }
+
+            playBtn.querySelector('.material-icons').textContent = 'pause';
+            stopBtn.disabled = false;
+            requestAnimationFrame(updatePlayback);
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            isPaused = false;
+
+            playBtn.querySelector('.material-icons').textContent = 'play_arrow';
+            stopBtn.disabled = true;
+
+            activeNotes.forEach((noteData, noteNumber) => {
+                stopNote(noteNumber);
+            });
+            activeNotes.clear();
+            progressFill.style.width = '0%';
+            progressText.textContent = '00:00 / 00:00';
+        }
+
+        function updatePlayback() {
+            if (!isPlaying || isDraggingProgress || isPaused) return;
+
+            const currentTime = Tone.now() - startTime;
+            const progress = (currentTime / totalDuration) * 100;
+
+            if (!isDraggingProgress) {
+                progressFill.style.width = `${Math.min(progress, 100)}%`;
+                progressText.textContent = `${formatTime(currentTime)} / ${formatTime(totalDuration)}`;
+            }
+
+            while (currentEvents.length > 0 && currentEvents[0].time <= currentTime) {
+                const event = currentEvents.shift();
+
+                if (event.type === 9 && event.velocity > 0) {
+                    startNote(event.noteNumber, event.velocity / 127);
+                } else {
+                    stopNote(event.noteNumber);
+                }
+            }
+
+            if (currentEvents.length === 0) {
+                stopPlayback();
+                playBtn.disabled = false;
+                stopBtn.disabled = true;
+                progressFill.style.width = '100%';
+                return;
+            }
+
+            requestAnimationFrame(updatePlayback);
+        }
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    midiData = MidiParser.parse(new Uint8Array(e.target.result));
+                    statusDiv.textContent = `${file.name}`;
+                    playBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    stopPlayback();
+                } catch (error) {
+                    statusDiv.textContent = `Error: ${error.message}`;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        document.getElementById('file-btn').addEventListener('click', () => {
+            document.getElementById('midi-file').click();
+        });
+
+        playBtn.addEventListener('click', () => {
+            if (!midiData) return;
+
+            if (isPlaying && !isPaused) {
+                // 正在播放 -> 暫停
+                isPaused = true;
+                playBtn.querySelector('.material-icons').textContent = 'play_arrow';
+            } else {
+                // 停止或暫停狀態 -> 播放
+                startPlayback();
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (!isPlaying && !isPaused) return;
+            stopPlayback();
+            playBtn.disabled = false;
+        });
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.addEventListener('resize', onWindowResize, false);
+
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects([...keyMap.values()]);
+
+            isMouseOverKeys = intersects.length > 0;
+            controls.enabled = !isMouseOverKeys && !isDragging;
+        }
+
+        function onMouseDown(event) {
+            if (isMouseOverKeys) {
+                const intersects = raycaster.intersectObjects([...keyMap.values()]);
+                if (intersects.length > 0) {
+                    const key = intersects[0].object;
+                    const noteNumber = key.userData.noteNumber;
+
+                    // 測試代碼：顯示音符資訊
+                    const noteName = Tone.Frequency(noteNumber, "midi").toNote();
+                    console.log(`Key pressed - MIDI: ${noteNumber}, Note: ${noteName}`);
+
+                    startNote(noteNumber);
+
+                    // 改為在 mouseup 時停止音符
+                    const stopNoteOnMouseUp = () => {
+                        stopNote(noteNumber);
+                        window.removeEventListener('mouseup', stopNoteOnMouseUp);
+                    };
+                    window.addEventListener('mouseup', stopNoteOnMouseUp);
+                }
+                event.preventDefault();
+            }
+        }
+
+        function onMouseUp(event) {
+            isDragging = false;
+        }
+
+        window.addEventListener('mousemove', onMouseMove, false);
+        window.addEventListener('mousedown', onMouseDown, false);
+        window.addEventListener('mouseup', onMouseUp, false);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+
+</html>
