@@ -310,6 +310,7 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
 #score-body { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: 0 12px 10px; overscroll-behavior: contain; }
 #score-paper { width: 100%; min-height: 60px; }
 #score-paper svg { display: block; cursor: pointer; }
+#score-paper > div > svg { cursor: default; }
 #score-paper .hl, #score-paper .hl * { fill: var(--felt); color: var(--felt); }
 #score-paper .ottava text { font: italic 600 12px Georgia, "Times New Roman", serif; fill: currentColor; }
 #score-paper .ottava path { fill: none; stroke: currentColor; stroke-width: 1; stroke-dasharray: 4 3; }
@@ -395,7 +396,7 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
 
 <div id="bar" class="panel">
   <div class="ctl">
-    <button class="icon-btn" id="open-btn" data-i18n-aria="open" data-i18n-title="open" aria-label="開啟 MIDI 檔案" title="開啟 MIDI 檔案">
+    <button class="icon-btn" id="open-btn" data-i18n-aria="open.tip" data-i18n-title="open.tip" aria-label="開啟 MIDI 檔案" title="開啟 MIDI 檔案">
       <svg viewBox="0 0 24 24"><path d="M10 4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6zm4 5v5.3a2.5 2.5 0 1 0 1.5 2.2V11h2.5V9H14z"/></svg>
     </button>
     <button class="icon-btn" id="play-btn" aria-label="播放" title="播放（空白鍵）" disabled>
@@ -439,7 +440,7 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
   </div>
 </div>
 
-<input type="file" id="file-input" accept=".mid,.midi,.kar,audio/midi,audio/x-midi" class="sr-only" tabindex="-1">
+<input type="file" id="file-input" accept=".mid,.midi,.kar,.musicxml,.xml,.mxl,audio/midi,audio/x-midi,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml" class="sr-only" tabindex="-1">
 <div id="drop" aria-hidden="true" data-i18n="drop">放開以載入 MIDI 檔案</div>
 <div id="toast" class="panel" role="status" aria-live="polite"></div>
 
@@ -457,8 +458,9 @@ const I18N = {
     'title': 'MIDI 鋼琴',
     'stage.aria': '3D 鋼琴，可用滑鼠或觸控彈奏',
     'empty.title': '把 MIDI 檔案拖到這裡',
-    'empty.body': '或開啟一個 .mid 檔案、試聽示範曲。也可以直接用滑鼠、電腦鍵盤或 MIDI 鍵盤彈奏。',
-    'open': '開啟 MIDI 檔案',
+    'empty.body': '或開啟 MIDI（.mid）或 MusicXML（.musicxml、.mxl）檔案、試聽示範曲。也可以直接用滑鼠、電腦鍵盤或 MIDI 鍵盤彈奏。',
+    'open': '開啟樂曲檔案',
+    'open.tip': '開啟 MIDI 或 MusicXML 檔案',
     'demo': '播放示範曲',
     'load.loading': '正在載入鋼琴音色…',
     'load.ready': '鋼琴音色已就緒',
@@ -503,10 +505,16 @@ const I18N = {
     'speed': '速度',
     'speed.aria': '播放速度',
     'volume': '音量',
-    'drop': '放開以載入 MIDI 檔案',
+    'drop': '放開以載入樂曲檔案',
     'lang.button': 'EN',
     'lang.switch': 'Switch to English',
-    'toast.notMidi': '「{name}」不是 MIDI 檔案，請選擇 .mid 或 .midi 檔。',
+    'toast.notMidi': '「{name}」不是支援的檔案，請選擇 MIDI（.mid）或 MusicXML（.musicxml、.mxl）。',
+    'toast.xmlError': '無法讀取「{name}」：檔案可能已損毀，或不是 score-partwise 格式的 MusicXML。',
+    'score.loadingXml': '正在排版 MusicXML 樂譜…',
+    'score.metaXml': 'MusicXML 原譜，共 {m} 小節',
+    'score.failedXml': '這份 MusicXML 樂譜無法顯示，排版引擎可能需要網路連線才能載入。',
+    'track.upper': '上方譜表',
+    'track.lower': '下方譜表',
     'toast.onlyDrums': '這個檔案只有鼓組，沒有可以用鋼琴彈奏的音符。',
     'toast.noNotes': '這個檔案裡沒有任何音符。',
     'toast.loaded': '已載入「{title}」',
@@ -526,8 +534,9 @@ const I18N = {
     'title': 'MIDI Piano',
     'stage.aria': '3D piano. Play it with the mouse or by touch.',
     'empty.title': 'Drop a MIDI file here',
-    'empty.body': 'Or open a .mid file, or listen to the demo. You can also play with the mouse, your computer keyboard, or a MIDI keyboard.',
-    'open': 'Open MIDI file',
+    'empty.body': 'Or open a MIDI (.mid) or MusicXML (.musicxml, .mxl) file, or listen to the demo. You can also play with the mouse, your computer keyboard, or a MIDI keyboard.',
+    'open': 'Open file',
+    'open.tip': 'Open a MIDI or MusicXML file',
     'demo': 'Play demo',
     'load.loading': 'Loading piano sounds…',
     'load.ready': 'Piano sounds ready',
@@ -572,10 +581,16 @@ const I18N = {
     'speed': 'Speed',
     'speed.aria': 'Playback speed',
     'volume': 'Volume',
-    'drop': 'Drop to load the MIDI file',
+    'drop': 'Drop to load the file',
     'lang.button': '中文',
     'lang.switch': '切換為繁體中文',
-    'toast.notMidi': '“{name}” isn’t a MIDI file. Choose a .mid or .midi file.',
+    'toast.notMidi': '“{name}” isn’t a supported file. Choose a MIDI (.mid) or MusicXML (.musicxml, .mxl) file.',
+    'toast.xmlError': 'Couldn’t read “{name}”. The file may be damaged, or it isn’t score-partwise MusicXML.',
+    'score.loadingXml': 'Laying out the MusicXML score…',
+    'score.metaXml': 'Original MusicXML score, {m} measures',
+    'score.failedXml': 'This MusicXML score couldn’t be displayed. The engraving engine may need a network connection to load.',
+    'track.upper': 'upper staff',
+    'track.lower': 'lower staff',
     'toast.onlyDrums': 'This file only has drum tracks, so there’s nothing to play on the piano.',
     'toast.noNotes': 'This file has no notes.',
     'toast.loaded': 'Loaded “{title}”',
@@ -989,8 +1004,220 @@ function prepareSong(title, rawTracks, meta = {}) {
   return { title, tracks, notes, duration, maxKeyDur, meta, secToBeat: tempo.secToBeat, beatToSec: tempo.beatToSec };
 }
 
+// ───────────────────────── MusicXML 讀取（.musicxml／.xml／壓縮的 .mxl）
+const MusicXML = (() => {
+  const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const DYN = { pppp: 0.15, ppp: 0.22, pp: 0.3, p: 0.4, mp: 0.5, mf: 0.6, f: 0.72, ff: 0.84, fff: 0.94, ffff: 1, sf: 0.82, sfz: 0.85, fz: 0.82, rf: 0.75, fp: 0.7 };
+
+  function decodeText(buf) {
+    const u8 = new Uint8Array(buf);
+    if (u8[0] === 0xff && u8[1] === 0xfe) return new TextDecoder('utf-16le').decode(u8);
+    if (u8[0] === 0xfe && u8[1] === 0xff) return new TextDecoder('utf-16be').decode(u8);
+    return new TextDecoder('utf-8').decode(u8);
+  }
+  const isZip = (buf) => { const u8 = new Uint8Array(buf, 0, 4); return u8[0] === 0x50 && u8[1] === 0x4b; };
+
+  // 讀取 .mxl（zip）：找到 META-INF/container.xml 指定的樂譜檔，用瀏覽器內建的 DecompressionStream 解壓
+  async function unzip(buf) {
+    const u8 = new Uint8Array(buf), dv = new DataView(buf);
+    let eocd = -1;
+    for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('zip');
+    const count = dv.getUint16(eocd + 10, true);
+    let p = dv.getUint32(eocd + 16, true);
+    const files = new Map();
+    for (let i = 0; i < count && dv.getUint32(p, true) === 0x02014b50; i++) {
+      const nameLen = dv.getUint16(p + 28, true), extraLen = dv.getUint16(p + 30, true), cmtLen = dv.getUint16(p + 32, true);
+      files.set(new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nameLen)), {
+        method: dv.getUint16(p + 10, true), size: dv.getUint32(p + 20, true), local: dv.getUint32(p + 42, true),
+      });
+      p += 46 + nameLen + extraLen + cmtLen;
+    }
+    const read = async (name) => {
+      const f = files.get(name);
+      if (!f) return null;
+      const off = f.local + 30 + dv.getUint16(f.local + 26, true) + dv.getUint16(f.local + 28, true);
+      const data = u8.subarray(off, off + f.size);
+      if (f.method === 0) return decodeText(data.slice().buffer);
+      if (f.method !== 8) throw new Error('zip method');
+      const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return decodeText(await new Response(stream).arrayBuffer());
+    };
+    let rootPath = null;
+    const container = await read('META-INF/container.xml');
+    if (container) { const m = container.match(/full-path="([^"]+)"/); if (m) rootPath = m[1]; }
+    if (!rootPath) rootPath = [...files.keys()].find((k) => /\.(xml|musicxml)$/i.test(k) && !k.startsWith('META-INF'));
+    if (!rootPath) throw new Error('mxl');
+    return read(rootPath);
+  }
+
+  async function readFile(file) {
+    const buf = await file.arrayBuffer();
+    return /\.mxl$/i.test(file.name) || isZip(buf) ? unzip(buf) : decodeText(buf);
+  }
+
+  // 解析 score-partwise：依書寫順序（不展開反覆記號）取得每個音的拍點、音高、力度、踏板與速度
+  function parse(xmlText) {
+    const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('xml');
+    const root = doc.documentElement;
+    if (root.nodeName !== 'score-partwise') throw new Error(root.nodeName);
+    const kids = (el, name) => Array.from(el.children).filter((c) => c.nodeName === name);
+    const first = (el, name) => (el ? el.getElementsByTagName(name)[0] || null : null);
+    const num = (el, name, d = 0) => { const x = first(el, name); return x ? parseFloat(x.textContent) : d; };
+    const text = (el) => (el ? el.textContent.trim() : '');
+
+    const title = text(first(root, 'work-title')) || text(first(root, 'movement-title'));
+    const partNames = new Map();
+    Array.from(root.getElementsByTagName('score-part')).forEach((sp) => partNames.set(sp.getAttribute('id'), text(first(sp, 'part-name'))));
+
+    const tempos = [], timeSigs = [], tracks = [];
+    let key = null;
+    kids(root, 'part').forEach((part, pi) => {
+      let divisions = 1, measureStart = 0, vel = 0.62, staves = 1;
+      const byStaff = new Map(), pedal = [], openTies = new Map();
+      const sound = (s, pos) => {
+        const tp = parseFloat(s.getAttribute('tempo'));
+        if (tp > 0 && !tempos.some((x) => Math.abs(x.beat - pos) < 1e-6)) tempos.push({ beat: pos, bpm: tp });
+        const dp = s.getAttribute('damper-pedal');
+        if (dp === 'yes') pedal.push({ beat: pos, value: 1 });
+        else if (dp === 'no') pedal.push({ beat: pos, value: 0 });
+        const dyn = parseFloat(s.getAttribute('dynamics'));
+        if (dyn > 0) vel = Math.min(1, dyn * 0.9 / 127);
+      };
+      for (const measure of kids(part, 'measure')) {
+        let pos = measureStart, maxPos = measureStart, lastStart = measureStart;
+        for (const el of measure.children) {
+          switch (el.nodeName) {
+            case 'attributes': {
+              const d = num(el, 'divisions', 0); if (d > 0) divisions = d;
+              const st = num(el, 'staves', 0); if (st > 0) staves = st;
+              const tm = first(el, 'time');
+              if (pi === 0 && tm && first(tm, 'beats')) {
+                const beats = parseInt(text(first(tm, 'beats')), 10), type = parseInt(text(first(tm, 'beat-type')), 10);
+                if (beats > 0 && type > 0) timeSigs.push({ beat: pos, ts: [beats, type] });
+              }
+              const k = first(el, 'key');
+              if (!key && k && first(k, 'fifths')) key = { fifths: parseInt(text(first(k, 'fifths')), 10), minor: text(first(k, 'mode')) === 'minor' };
+              break;
+            }
+            case 'sound': sound(el, pos); break;
+            case 'direction': {
+              const s = first(el, 'sound'); if (s) sound(s, pos);
+              const dyn = first(el, 'dynamics');
+              if (dyn && dyn.firstElementChild && DYN[dyn.firstElementChild.nodeName]) vel = DYN[dyn.firstElementChild.nodeName];
+              const pd = first(el, 'pedal');
+              if (pd) {
+                const ty = pd.getAttribute('type');
+                if (ty === 'start' || ty === 'resume') pedal.push({ beat: pos, value: 1 });
+                else if (ty === 'stop' || ty === 'discontinue') pedal.push({ beat: pos, value: 0 });
+                else if (ty === 'change') { pedal.push({ beat: pos, value: 0 }); pedal.push({ beat: pos + 0.01, value: 1 }); }
+              }
+              break;
+            }
+            case 'backup': pos -= num(el, 'duration') / divisions; break;
+            case 'forward': pos += num(el, 'duration') / divisions; maxPos = Math.max(maxPos, pos); break;
+            case 'note': {
+              const isChord = !!first(el, 'chord'), isGrace = !!first(el, 'grace'), isRest = !!first(el, 'rest');
+              const dur = isGrace ? 0 : num(el, 'duration') / divisions;
+              const start = isChord ? lastStart : pos;
+              const p = !isRest && first(el, 'pitch');
+              if (p) {
+                const step = STEP[text(first(p, 'step'))];
+                const octave = parseInt(text(first(p, 'octave')), 10);
+                if (step !== undefined && Number.isFinite(octave)) {
+                  const midi = (octave + 1) * 12 + step + Math.round(num(p, 'alter', 0));
+                  const staff = parseInt(text(first(el, 'staff')) || '1', 10) || 1;
+                  const nd = parseFloat(el.getAttribute('dynamics'));
+                  const v = nd > 0 ? Math.min(1, nd * 0.9 / 127) : vel;
+                  const len = isGrace ? 0.1 : Math.max(dur, 0.02);
+                  const ties = kids(el, 'tie').map((x) => x.getAttribute('type'));
+                  const tk = staff + ':' + midi;
+                  if (ties.includes('stop') && openTies.has(tk)) {
+                    const n = openTies.get(tk);
+                    n.beatEnd = Math.max(n.beatEnd, start + len);
+                    if (!ties.includes('start')) openTies.delete(tk);
+                  } else {
+                    const n = { midi, beat: start, beatEnd: start + len, velocity: v };
+                    if (!byStaff.has(staff)) byStaff.set(staff, []);
+                    byStaff.get(staff).push(n);
+                    if (ties.includes('start')) openTies.set(tk, n);
+                  }
+                }
+              }
+              if (!isChord) {
+                lastStart = pos;
+                if (!isGrace) { pos += dur; maxPos = Math.max(maxPos, pos); }
+              }
+              break;
+            }
+            default: break;
+          }
+        }
+        measureStart = Math.max(maxPos, pos);
+      }
+      const name = partNames.get(part.getAttribute('id')) || '';
+      const nStaves = Math.max(staves, byStaff.size);
+      [...byStaff.keys()].sort((a, b) => a - b).forEach((st) => {
+        tracks.push({ name, staff: st, staves: nStaves, part: pi, notes: byStaff.get(st), pedal });
+      });
+    });
+    return { title, tracks, tempos, timeSigs, key };
+  }
+
+  // 拍點（四分音符）→ 秒
+  function tempoTable(tempos) {
+    const tp = tempos.slice().sort((a, b) => a.beat - b.beat);
+    if (!tp.length) tp.push({ beat: 0, bpm: 120 });
+    if (tp[0].beat > 0) tp.unshift({ beat: 0, bpm: tp[0].bpm });
+    tp.forEach((x, i) => { x.time = i ? tp[i - 1].time + (x.beat - tp[i - 1].beat) * 60 / tp[i - 1].bpm : 0; });
+    const b2s = (b) => {
+      let e = tp[0];
+      for (const x of tp) { if (x.beat <= b) e = x; else break; }
+      return e.time + (b - e.beat) * 60 / e.bpm;
+    };
+    return { tp, b2s };
+  }
+
+  return { readFile, parse, tempoTable };
+})();
+
+async function loadMusicXML(file) {
+  try {
+    const xml = await MusicXML.readFile(file);
+    const parsed = MusicXML.parse(xml);
+    const { tp, b2s } = MusicXML.tempoTable(parsed.tempos);
+    const raw = parsed.tracks.map((tr) => ({
+      name: tr.name || null,
+      nameKey: 'track.n',
+      nameN: tr.part + 1,
+      detailKey: tr.staves > 1 ? (tr.staff === 1 ? 'track.upper' : 'track.lower') : null,
+      notes: tr.notes.map((n) => ({ midi: n.midi, time: b2s(n.beat), duration: Math.max(0.02, b2s(n.beatEnd) - b2s(n.beat)), velocity: n.velocity })),
+      pedal: tr.pedal.map((p) => ({ time: b2s(p.beat), value: p.value })),
+    }));
+    const meta = {
+      tempos: tp.map((x) => ({ time: x.time, beat: x.beat, bpm: x.bpm })),
+      timeSig: parsed.timeSigs.length ? parsed.timeSigs[0].ts : null,
+      timeSigs: parsed.timeSigs,
+      key: null,
+      xml,
+    };
+    const s = prepareSong(parsed.title || file.name.replace(/\.(musicxml|xml|mxl)$/i, ''), raw, meta);
+    if (!s.notes.length) { toast(t('toast.noNotes'), true); return; }
+    setSong(s);
+    ScoreView.open({ auto: true });
+    toast(t('toast.loaded', { title: s.title }));
+  } catch (err) {
+    console.error(err);
+    toast(t('toast.xmlError', { name: file.name }), true);
+  }
+}
+
 async function loadFile(file) {
   if (!file) return;
+  if (/\.(musicxml|xml|mxl)$/i.test(file.name)) return loadMusicXML(file);
   if (!/\.(mid|midi|kar)$/i.test(file.name)) {
     toast(t('toast.notMidi', { name: file.name }), true);
     return;
@@ -1903,6 +2130,80 @@ const ScoreView = (() => {
   const status = $('#score-status'), metaEl = $('#score-meta'), btn = $('#score-btn');
   const follow = $('#score-follow');
   let open = false, built = null, builtFor = null, visual = null, pendingFor = null, autoOpened = false;
+  // MusicXML 樂譜改用 OpenSheetMusicDisplay 排版（需要時才載入）
+  const OSMD_URL = 'https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@2.2.0/build/opensheetmusicdisplay.min.js';
+  let mode = 'abc', osmd = null, osmdLoading = null, stamps = [], curIdx = 0, xmlMeasures = 0;
+  function loadOsmd() {
+    if (window.opensheetmusicdisplay) return Promise.resolve();
+    if (!osmdLoading) {
+      osmdLoading = new Promise((resolve, reject) => {
+        const sc = document.createElement('script');
+        sc.src = OSMD_URL;
+        sc.onload = resolve;
+        sc.onerror = () => { osmdLoading = null; reject(new Error('osmd')); };
+        document.head.appendChild(sc);
+      });
+    }
+    return osmdLoading;
+  }
+  async function renderXml(reuse) {
+    mode = 'xml';
+    const width = body.clientWidth - 24;
+    renderedWidth = width;
+    if (!reuse || !osmd) {
+      await loadOsmd();
+      paper.innerHTML = '';
+      const ink = cssVar('--ink') || '#000000';
+      osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(paper, {
+        autoResize: false, backend: 'svg', drawTitle: true, drawSubtitle: true, drawComposer: true,
+        drawCredits: false, drawPartNames: false, followCursor: false,
+        defaultColorMusic: ink, defaultColorLabel: ink, defaultColorTitle: ink,
+        cursorsOptions: [{ type: 0, color: cssVar('--felt') || '#c2413a', alpha: 0.35, follow: false }],
+      });
+      await osmd.load(song.meta.xml);
+      xmlMeasures = osmd.Sheet && osmd.Sheet.SourceMeasures ? osmd.Sheet.SourceMeasures.length : 0;
+    }
+    osmd.zoom = zoom * (width < 620 ? 0.55 : 0.8);
+    osmd.render();
+    osmd.cursor.show();
+    // 記下游標每一步的拍點（四分音符），播放時依時間移動游標
+    stamps = [];
+    osmd.cursor.reset();
+    const it = osmd.cursor.Iterator;
+    while (!it.EndReached) {
+      const q = it.currentTimeStamp.RealValue * 4;
+      if (stamps.length && q < stamps[stamps.length - 1] - 1e-6) break;   // 反覆記號：只跟隨書寫順序
+      stamps.push(q);
+      it.moveToNext();
+    }
+    osmd.cursor.reset();
+    curIdx = 0;
+    lastTop = null;
+    setStatus('');
+    metaEl.textContent = metaText();
+  }
+  function syncXml(t) {
+    if (!osmd || !stamps.length) return;
+    const qn = song.secToBeat(t);
+    let lo = 0, hi = stamps.length - 1, idx = 0;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (stamps[mid] <= qn + 1e-3) { idx = mid; lo = mid + 1; } else hi = mid - 1; }
+    const c = osmd.cursor;
+    if (idx !== curIdx) {
+      if (idx < curIdx) { c.reset(); curIdx = 0; }
+      const it = c.Iterator;
+      while (curIdx < idx && !it.EndReached) { it.moveToNext(); curIdx++; }
+      c.update();
+    }
+    const el = c.cursorElement;
+    if (el && follow.checked) {
+      const top = el.offsetTop;
+      if (top !== lastTop) {
+        lastTop = top;
+        const y = el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 12;
+        body.scrollTo({ top: Math.max(0, y), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+      }
+    }
+  }
   let events = [], cursor = null, hlEls = [], lastIdx = -1, lastTop = null;
   let zoom = 1, renderTimer = 0, renderedWidth = 0;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -1940,6 +2241,7 @@ const ScoreView = (() => {
     status.hidden = !key;
   }
   function metaText() {
+    if (mode === 'xml') return t('score.metaXml', { m: fmtNum(xmlMeasures) });
     if (!built) return '';
     const keyStr = t(built.keyMinor ? 'key.minor' : 'key.major', { tonic: built.keyTonic }) + (built.keyFromFile ? '' : t('key.detected'));
     return t('score.meta', { key: keyStr, ts: t('ts', { ts: built.meter, n: built.meterChanges }), m: fmtNum(built.measures) });
@@ -1952,8 +2254,26 @@ const ScoreView = (() => {
       visual = null;
       paper.innerHTML = '';
       metaEl.textContent = '';
-      setStatus('score.converting');
       const target = song;
+      if (song.meta && song.meta.xml) {
+        setStatus('score.loadingXml');
+        renderXml(false).then(() => {
+          pendingFor = null;
+          builtFor = target;
+          built = null;
+        }).catch((err) => {
+          console.error(err);
+          pendingFor = null;
+          builtFor = target;
+          osmd = null;
+          setStatus('score.failedXml');
+          if (autoOpened) { setOpen(false); toast(t('score.failedXml'), true); }
+        });
+        return;
+      }
+      mode = 'abc';
+      osmd = null;
+      setStatus('score.converting');
       setTimeout(() => {
         pendingFor = null;
         if (target !== song) return;
@@ -1972,6 +2292,8 @@ const ScoreView = (() => {
           }
         }
       }, 30);
+    } else if (mode === 'xml' && osmd) {
+      renderXml(true).catch((err) => console.error(err));
     } else if (!visual && built) {
       render();
     }
@@ -2081,6 +2403,7 @@ const ScoreView = (() => {
     body.scrollTo({ top: Math.max(0, y), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
   }
   function sync(t) {
+    if (open && mode === 'xml' && builtFor === song) { syncXml(t); return; }
     if (!open || !visual || builtFor !== song || !events.length) return;
     const qn = song.secToBeat(t);
     let lo = 0, hi = events.length - 1, idx = -1;
@@ -2118,9 +2441,16 @@ const ScoreView = (() => {
   }
   function rerenderSoon() {
     clearTimeout(renderTimer);
-    renderTimer = setTimeout(() => { if (open && built && builtFor === song) render(); }, 180);
+    renderTimer = setTimeout(() => {
+      if (!open || builtFor !== song) return;
+      if (mode === 'xml' && osmd) renderXml(true).catch((err) => console.error(err));
+      else if (built) render();
+    }, 180);
   }
 
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (mode === 'xml' && osmd && open && builtFor === song) renderXml(false).catch((err) => console.error(err));
+  });
   btn.addEventListener('click', () => setOpen(!open));
   $('#score-close').addEventListener('click', () => setOpen(false));
 
@@ -2177,7 +2507,7 @@ const ScoreView = (() => {
     refreshLang() {
       btn.setAttribute('aria-label', t(open ? 'score.hide' : 'score.show'));
       if (statusKey) status.textContent = t(statusKey);
-      if (visual && built) metaEl.textContent = metaText();
+      if ((visual && built) || (mode === 'xml' && osmd)) metaEl.textContent = metaText();
     },
     get abc() { return built && built.abc; },
   };
