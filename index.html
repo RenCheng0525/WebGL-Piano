@@ -196,7 +196,7 @@ input[type="range"] { width: 92px; accent-color: var(--felt); }
   position: fixed;
   top: calc(9vh + env(safe-area-inset-top, 0px));
   left: 50%; transform: translateX(-50%);
-  width: min(460px, calc(100% - 32px));
+  width: min(560px, calc(100% - 32px));
   padding: 24px 26px 22px;
   border-radius: 18px;
   z-index: 6;
@@ -206,8 +206,16 @@ input[type="range"] { width: 92px; accent-color: var(--felt); }
 #empty .actions { display: flex; flex-wrap: wrap; gap: 10px; }
 #empty .samples { margin-top: 14px; }
 #empty .samples-label { display: block; margin-bottom: 6px; font-size: 12.5px; color: var(--muted); }
-#empty .sample-row { display: flex; flex-wrap: wrap; gap: 10px; }
-#empty .sample-row .btn { flex: 1 1 auto; white-space: nowrap; padding: 9px 12px; }
+#empty .sample-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#empty .sample-row .btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 8px 8px 7px; text-align: center; line-height: 1.3; }
+#empty .sample-row .s-name { font-size: 14px; }
+#empty .sample-row .s-fmt { font-size: 11.5px; font-weight: 400; color: var(--muted); letter-spacing: .02em; }
+#empty .sample-row .s-name { white-space: nowrap; }
+/* 手機直立：三欄放不下曲名，改成一顆一行，曲名與格式並排 */
+@media (max-width: 480px) {
+  #empty .sample-row { grid-template-columns: 1fr; gap: 8px; }
+  #empty .sample-row .btn { flex-direction: row; gap: 8px; padding: 8px 12px; }
+}
 .btn {
   border: 0; border-radius: 10px; padding: 9px 16px; font-weight: 500; background: var(--btn);
 }
@@ -362,8 +370,10 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
   <div class="samples">
     <span class="samples-label" data-i18n="sample.label">範例曲</span>
     <div class="sample-row">
-      <button class="btn sample-btn" data-sample="0" data-i18n="sample.chopin" disabled>蕭邦〈夜曲〉MIDI</button>
-      <button class="btn sample-btn" data-sample="1" data-i18n="sample.liszt" disabled>李斯特〈鐘〉MusicXML</button>
+      <button class="btn sample-btn" data-sample="0" disabled><span class="s-name" data-i18n="sample.chopin">蕭邦〈夜曲〉</span><span class="s-fmt">MIDI</span></button>
+      <button class="btn sample-btn" data-sample="1" disabled><span class="s-name" data-i18n="sample.liszt">李斯特〈鐘〉</span><span class="s-fmt">MusicXML</span></button>
+      <button class="btn sample-btn" data-sample="2" disabled><span class="s-name" data-i18n="sample.canon">帕海貝爾〈卡農〉</span><span class="s-fmt">MIDI</span></button>
+      <button class="btn sample-btn" data-sample="3" disabled><span class="s-name" data-i18n="sample.debussy">德布西〈月光〉</span><span class="s-fmt">MusicXML</span></button>
     </div>
   </div>
   <div id="load-state" role="status"><span class="dot"></span><span class="txt">正在載入鋼琴音色…</span></div>
@@ -470,8 +480,10 @@ const I18N = {
     'empty.title': '把樂曲檔案拖到這裡',
     'empty.body': '支援 MIDI（.mid）與 MusicXML（.musicxml、.mxl）。手邊沒有檔案也沒關係，可以先試試下面的範例曲，或直接用滑鼠、電腦鍵盤、MIDI 鍵盤彈奏。',
     'sample.label': '範例曲',
-    'sample.chopin': '蕭邦〈夜曲〉MIDI',
-    'sample.liszt': '李斯特〈鐘〉MusicXML',
+    'sample.chopin': '蕭邦〈夜曲〉',
+    'sample.liszt': '李斯特〈鐘〉',
+    'sample.canon': '帕海貝爾〈卡農〉',
+    'sample.debussy': '德布西〈月光〉',
     'sample.loading': '正在下載範例曲…',
     'sample.error': '無法下載範例曲，請確認網路連線後再試一次。',
     'open': '開啟樂曲檔案',
@@ -545,8 +557,10 @@ const I18N = {
     'empty.title': 'Drop a music file here',
     'empty.body': 'MIDI (.mid) and MusicXML (.musicxml, .mxl) files are supported. No file at hand? Try one of the samples below, or play the piano yourself with the mouse, your computer keyboard, or a MIDI keyboard.',
     'sample.label': 'Samples',
-    'sample.chopin': 'Nocturne (MIDI)',
-    'sample.liszt': 'La Campanella (MusicXML)',
+    'sample.chopin': 'Chopin Nocturne',
+    'sample.liszt': 'La Campanella',
+    'sample.canon': 'Canon in D',
+    'sample.debussy': 'Clair de Lune',
     'sample.loading': 'Downloading the sample…',
     'sample.error': 'Couldn’t download the sample. Check your connection and try again.',
     'open': 'Open file',
@@ -1452,12 +1466,12 @@ $('#open-btn').addEventListener('click', openPicker);
 $('#empty-open').addEventListener('click', openPicker);
 fileInput.addEventListener('change', () => { loadFile(fileInput.files[0]); fileInput.value = ''; });
 // 範例曲：在 GitHub Pages 上先用同一網站的相對路徑，失敗時改從 GitHub 下載
-const SAMPLE_FILES = ['chopin-nocturne-op-9-no-2-e-flat-major.mid', 'etude-s-1413-in-g-minor-la-campanella-liszt.mxl'];
+const SAMPLE_FILES = ['chopin-nocturne-op-9-no-2-e-flat-major.mid', 'etude-s-1413-in-g-minor-la-campanella-liszt.mxl', 'Canon in D.mid', 'clair-de-lune-debussy.mxl'];
 const SAMPLE_BASE = 'https://github.com/RenCheng0525/WebGL-Piano/raw/refs/heads/main/';
 async function fetchSample(name) {
   const urls = [];
-  if (/^https?:$/.test(location.protocol)) urls.push(new URL(name, location.href).href);
-  urls.push(SAMPLE_BASE + name);
+  if (/^https?:$/.test(location.protocol)) urls.push(new URL(encodeURIComponent(name), location.href).href);
+  urls.push(SAMPLE_BASE + encodeURIComponent(name));   // 檔名有空白（Canon in D.mid），要編碼成 %20
   for (const u of urls) {
     try {
       const r = await fetch(u);
