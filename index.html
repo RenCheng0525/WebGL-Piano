@@ -204,6 +204,10 @@ input[type="range"] { width: 92px; accent-color: var(--felt); }
 #empty h1 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: .01em; }
 #empty p { margin: 0 0 18px; color: var(--muted); }
 #empty .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+#empty .samples { margin-top: 14px; }
+#empty .samples-label { display: block; margin-bottom: 6px; font-size: 12.5px; color: var(--muted); }
+#empty .sample-row { display: flex; flex-wrap: wrap; gap: 10px; }
+#empty .sample-row .btn { flex: 1 1 auto; white-space: nowrap; padding: 9px 12px; }
 .btn {
   border: 0; border-radius: 10px; padding: 9px 16px; font-weight: 500; background: var(--btn);
 }
@@ -354,7 +358,13 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
   <p data-i18n="empty.body">或開啟一個 .mid 檔案、試聽示範曲。也可以直接用滑鼠、電腦鍵盤或 MIDI 鍵盤彈奏。</p>
   <div class="actions">
     <button class="btn primary" id="empty-open" data-i18n="open">開啟 MIDI 檔案</button>
-    <button class="btn" id="demo-btn" data-i18n="demo" disabled>播放示範曲</button>
+  </div>
+  <div class="samples">
+    <span class="samples-label" data-i18n="sample.label">範例曲</span>
+    <div class="sample-row">
+      <button class="btn sample-btn" data-sample="0" data-i18n="sample.chopin" disabled>蕭邦〈夜曲〉MIDI</button>
+      <button class="btn sample-btn" data-sample="1" data-i18n="sample.liszt" disabled>李斯特〈鐘〉MusicXML</button>
+    </div>
   </div>
   <div id="load-state" role="status"><span class="dot"></span><span class="txt">正在載入鋼琴音色…</span></div>
 </section>
@@ -458,10 +468,14 @@ const I18N = {
     'title': 'MIDI 鋼琴',
     'stage.aria': '3D 鋼琴，可用滑鼠或觸控彈奏',
     'empty.title': '把樂曲檔案拖到這裡',
-    'empty.body': '支援 MIDI（.mid）與 MusicXML（.musicxml、.mxl）。手邊沒有檔案也沒關係，可以先聽示範曲，或直接用滑鼠、電腦鍵盤、MIDI 鍵盤彈奏。',
+    'empty.body': '支援 MIDI（.mid）與 MusicXML（.musicxml、.mxl）。手邊沒有檔案也沒關係，可以先試試下面的範例曲，或直接用滑鼠、電腦鍵盤、MIDI 鍵盤彈奏。',
+    'sample.label': '範例曲',
+    'sample.chopin': '蕭邦〈夜曲〉MIDI',
+    'sample.liszt': '李斯特〈鐘〉MusicXML',
+    'sample.loading': '正在下載範例曲…',
+    'sample.error': '無法下載範例曲，請確認網路連線後再試一次。',
     'open': '開啟樂曲檔案',
     'open.tip': '開啟 MIDI 或 MusicXML 檔案',
-    'demo': '播放示範曲',
     'load.loading': '正在載入鋼琴音色…',
     'load.ready': '鋼琴音色已就緒',
     'load.error': '鋼琴音色載入失敗，請重新整理頁面再試一次。',
@@ -524,20 +538,19 @@ const I18N = {
     'midi.connected': '已連接 {n} 個 MIDI 裝置，可以直接彈奏。',
     'midi.none': '已啟用 MIDI，但目前沒有偵測到裝置。插上鍵盤後會自動連接。',
     'midi.denied': '無法使用 MIDI 裝置：瀏覽器拒絕了存取權限。',
-    'demo.title': '巴哈《C 大調前奏曲》BWV 846（示範）',
-    'demo.left': '左手',
-    'demo.leftDetail': '低音與內聲部',
-    'demo.right': '右手',
-    'demo.rightDetail': '分解和弦',
   },
   en: {
     'title': 'MIDI Piano',
     'stage.aria': '3D piano. Play it with the mouse or by touch.',
     'empty.title': 'Drop a music file here',
-    'empty.body': 'MIDI (.mid) and MusicXML (.musicxml, .mxl) files are supported. No file at hand? Listen to the demo, or play the piano yourself with the mouse, your computer keyboard, or a MIDI keyboard.',
+    'empty.body': 'MIDI (.mid) and MusicXML (.musicxml, .mxl) files are supported. No file at hand? Try one of the samples below, or play the piano yourself with the mouse, your computer keyboard, or a MIDI keyboard.',
+    'sample.label': 'Samples',
+    'sample.chopin': 'Nocturne (MIDI)',
+    'sample.liszt': 'La Campanella (MusicXML)',
+    'sample.loading': 'Downloading the sample…',
+    'sample.error': 'Couldn’t download the sample. Check your connection and try again.',
     'open': 'Open file',
     'open.tip': 'Open a MIDI or MusicXML file',
-    'demo': 'Play demo',
     'load.loading': 'Loading piano sounds…',
     'load.ready': 'Piano sounds ready',
     'load.error': 'Piano sounds failed to load. Reload the page to try again.',
@@ -600,11 +613,6 @@ const I18N = {
     'midi.connected': (v) => `Connected ${v.n} MIDI device${v.n > 1 ? 's' : ''}. You can start playing.`,
     'midi.none': 'MIDI is on, but no devices were found. Plug in a keyboard and it will connect automatically.',
     'midi.denied': 'Can’t use MIDI devices because the browser denied access.',
-    'demo.title': 'Bach, Prelude in C major, BWV 846 (demo)',
-    'demo.left': 'Left hand',
-    'demo.leftDetail': 'bass and inner voice',
-    'demo.right': 'Right hand',
-    'demo.rightDetail': 'broken chords',
   },
 };
 const LANG_KEY = 'piano.lang';
@@ -874,7 +882,7 @@ async function loadSamples() {
     state.classList.add('ready');
     loadStatus = 'ready';
     state.querySelector('.txt').textContent = t('load.ready');
-    $('#demo-btn').disabled = false;
+    document.querySelectorAll('.sample-btn').forEach((b) => { b.disabled = false; });
     updateButtons();
   } catch (err) {
     console.error(err);
@@ -1259,40 +1267,6 @@ async function loadFile(file) {
   }
 }
 
-// 示範曲：巴哈《C 大調前奏曲》BWV 846 前 19 小節（公版）
-function demoSong() {
-  const bars = [
-    [48, 52, 55, 60, 64], [48, 50, 57, 62, 65], [47, 50, 55, 62, 65], [48, 52, 55, 60, 64],
-    [48, 52, 57, 64, 69], [48, 50, 54, 57, 62], [47, 50, 55, 62, 67], [47, 48, 52, 55, 60],
-    [45, 48, 52, 55, 60], [38, 45, 50, 54, 60], [43, 47, 50, 55, 59], [43, 46, 52, 55, 61],
-    [41, 45, 50, 57, 62], [41, 44, 50, 53, 59], [40, 43, 48, 55, 60], [40, 41, 45, 48, 53],
-    [38, 41, 45, 48, 53], [31, 38, 43, 47, 53], [36, 40, 43, 48, 52],
-  ];
-  const s16 = 60 / 66 / 4;
-  const left = [], right = [];
-  let t = 0;
-  bars.forEach((c0, bi) => {
-    const c = c0.map((m) => m + 12);
-    for (let h = 0; h < 2; h++) {
-      const t0 = t + h * 8 * s16;
-      const swell = 0.5 + 0.12 * Math.sin((bi / bars.length) * Math.PI);
-      left.push({ midi: c[0], time: t0, duration: 8 * s16 * 0.98, velocity: swell + 0.05 });
-      left.push({ midi: c[1], time: t0 + s16, duration: 7 * s16 * 0.98, velocity: swell - 0.05 });
-      [2, 3, 4, 2, 3, 4].forEach((idx, j) => {
-        right.push({ midi: c[idx], time: t0 + (2 + j) * s16, duration: s16 * 1.05, velocity: swell + (j % 3 === 0 ? 0.04 : -0.02) });
-      });
-    }
-    t += 16 * s16;
-  });
-  [48, 55, 60].forEach((m) => left.push({ midi: m, time: t, duration: 16 * s16, velocity: 0.5 }));
-  [64, 67, 72].forEach((m) => right.push({ midi: m, time: t, duration: 16 * s16, velocity: 0.48 }));
-  const demo = prepareSong('BWV 846', [
-    { name: null, nameKey: 'demo.left', detailKey: 'demo.leftDetail', notes: left, pedal: [] },
-    { name: null, nameKey: 'demo.right', detailKey: 'demo.rightDetail', notes: right, pedal: [] },
-  ], { tempos: [{ time: 0, beat: 0, bpm: 66 }], timeSig: [4, 4], key: { name: 'C', minor: false } });
-  demo.titleKey = 'demo.title';
-  return demo;
-}
 
 // ───────────────────────── 播放引擎（Tone.Transport + Tone.Part）
 function buildPart() {
@@ -1477,7 +1451,38 @@ const openPicker = () => { ensureAudio(); fileInput.click(); };
 $('#open-btn').addEventListener('click', openPicker);
 $('#empty-open').addEventListener('click', openPicker);
 fileInput.addEventListener('change', () => { loadFile(fileInput.files[0]); fileInput.value = ''; });
-$('#demo-btn').addEventListener('click', async () => { await ensureAudio(); setSong(demoSong()); ScoreView.open({ auto: true }); play(); });
+// 範例曲：在 GitHub Pages 上先用同一網站的相對路徑，失敗時改從 GitHub 下載
+const SAMPLE_FILES = ['chopin-nocturne-op-9-no-2-e-flat-major.mid', 'etude-s-1413-in-g-minor-la-campanella-liszt.mxl'];
+const SAMPLE_BASE = 'https://github.com/RenCheng0525/WebGL-Piano/raw/refs/heads/main/';
+async function fetchSample(name) {
+  const urls = [];
+  if (/^https?:$/.test(location.protocol)) urls.push(new URL(name, location.href).href);
+  urls.push(SAMPLE_BASE + name);
+  for (const u of urls) {
+    try {
+      const r = await fetch(u);
+      if (r.ok) return new File([await r.blob()], name);
+    } catch (e) { /* 換下一個網址 */ }
+  }
+  throw new Error('sample');
+}
+document.querySelectorAll('.sample-btn').forEach((b) => b.addEventListener('click', async () => {
+  const name = SAMPLE_FILES[+b.dataset.sample];
+  ensureAudio();
+  b.disabled = true;
+  toast(t('sample.loading'));
+  try {
+    const file = await fetchSample(name);
+    const before = song;
+    await loadFile(file);
+    if (song && song !== before) play();
+  } catch (err) {
+    console.error(err);
+    toast(t('sample.error'), true);
+  } finally {
+    b.disabled = !samplesReady;
+  }
+}));
 
 let dragDepth = 0;
 const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
@@ -2635,7 +2640,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // 讓主控台方便除錯
-window.__piano = { Engraver, ScoreView, get song() { return song; }, seek, play, pause, stop, setRate, loadFile, demoSong, setSong };
+window.__piano = { Engraver, ScoreView, get song() { return song; }, seek, play, pause, stop, setRate, loadFile, setSong };
 })();
 </script>
 </body>
