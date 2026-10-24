@@ -2204,7 +2204,10 @@ const ScoreView = (() => {
       const top = el.offsetTop;
       if (top !== lastTop) {
         lastTop = top;
-        const y = el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 12;
+        // 第一個位置：捲回最上面，讓標題與作曲者看得到
+        // 其他位置：上方留空間給 8va、高音加線、速度與表情文字，盡量讓整個譜表系統置中
+        const pad = Math.max(48, Math.min(120, (body.clientHeight - el.offsetHeight) / 2));
+        const y = curIdx === 0 ? 0 : el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - pad;
         body.scrollTo({ top: Math.max(0, y), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
       }
     }
@@ -2404,7 +2407,8 @@ const ScoreView = (() => {
     if (!svg || !svg.viewBox.baseVal || !svg.viewBox.baseVal.width) return;
     const r = svg.getBoundingClientRect();
     const scale = r.width / svg.viewBox.baseVal.width;
-    const y = r.top - body.getBoundingClientRect().top + body.scrollTop + top * scale - 6;
+    const first = events.length && top <= events[0].ev.top;
+    const y = first ? 0 : r.top - body.getBoundingClientRect().top + body.scrollTop + top * scale - 40;   // 上方留給 8va 括線與小節編號
     body.scrollTo({ top: Math.max(0, y), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
   }
   function sync(t) {
