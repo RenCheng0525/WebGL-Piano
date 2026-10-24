@@ -311,6 +311,8 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
 #score-paper { width: 100%; min-height: 60px; }
 #score-paper svg { display: block; cursor: pointer; }
 #score-paper .hl, #score-paper .hl * { fill: var(--felt); color: var(--felt); }
+#score-paper .ottava text { font: italic 600 12px Georgia, "Times New Roman", serif; fill: currentColor; }
+#score-paper .ottava path { fill: none; stroke: currentColor; stroke-width: 1; stroke-dasharray: 4 3; }
 #score-paper .score-cursor { stroke: var(--felt); stroke-width: 2.5; opacity: .45; pointer-events: none; }
 #score-status { padding: 18px 6px; color: var(--muted); font-size: 14px; }
 #score-btn[aria-pressed="true"] { background: var(--btn-hover); color: var(--felt); }
@@ -1464,14 +1466,30 @@ const Engraver = (() => {
   }
   function chooseKey(notes, fileKey) {
     const scores = keyScores(notes);
+    // 終止和弦：最後一拍內的音若包含某調的主和弦，該調加分（曲子通常結束在主和弦）
+    let lastBeat = -Infinity;
+    notes.forEach((n) => { if (n.beat > lastBeat) lastBeat = n.beat; });
+    const finalPcs = new Set(notes.filter((n) => n.beat >= lastBeat - 1).map((n) => n.midi % 12));
+    scores.forEach((s) => {
+      const tonic = namePc((s.minor ? MIN : MAJ)[s.fifths]);
+      const third = (tonic + (s.minor ? 3 : 4)) % 12, fifth = (tonic + 7) % 12;
+      if (finalPcs.has(tonic) && finalPcs.has(third)) s.score += finalPcs.has(fifth) ? 0.15 : 0.08;
+    });
     let best = scores[0];
     scores.forEach((s) => { if (s.score > best.score) best = s; });
     if (fileKey) {
-      const f = fifthsOf(fileKey.name, fileKey.minor);
+      let f = fifthsOf(fileKey.name, fileKey.minor);
       if (f !== null) {
-        const s = scores.find((x) => x.fifths === f && x.minor === fileKey.minor) || { score: -1 };
-        // 檔案裡的調號若合理就採用；很多軟體會預設寫入 C 大調，與內容差太多時改用偵測結果
-        if (s.score >= best.score - 0.12) return { fifths: f, minor: fileKey.minor, fromFile: true };
+        if (f > 6) f -= 12;          // C♯ 大調 → D♭ 大調等同音異名調
+        if (f < -6) f += 12;
+        if (f !== 0) {
+          // 檔案寫了升降記號，調號本身可信；只需判斷是大調還是它的關係小調
+          const same = scores.filter((x) => x.fifths === f).sort((a, b) => b.score - a.score);
+          return { fifths: f, minor: same.length ? same[0].minor : fileKey.minor, fromFile: true };
+        }
+        // C 大調常是軟體預設值，與內容差太多時改用偵測結果
+        const s0 = scores.filter((x) => x.fifths === 0).sort((a, b) => b.score - a.score)[0];
+        if (s0 && s0.score >= best.score - 0.12) return { fifths: 0, minor: s0.minor, fromFile: true };
       }
     }
     return { fifths: best.fifths, minor: best.minor, fromFile: false };
@@ -1716,7 +1734,7 @@ const Engraver = (() => {
       const toks = ps.map((m) => abcPitch(spell(m, ki), acc, ki));
       return toks.length === 1 ? toks[0] : '[' + toks.join('') + ']';
     }
-    function writeVoice(chords, primary) {
+    function writeVoice(chords, primary, marks = [], plan = null, defClef = 'treble') {
       // 只有在這個聲部真的有音落在拍子中間時，才把那一拍寫成三連音
       const inner = new Set();
       chords.forEach((c) => [c.s, c.e].forEach((x) => { if (x % U !== 0) inner.add(Math.floor(x / U)); }));
@@ -1726,7 +1744,8 @@ const Engraver = (() => {
       for (let m = 0; m < nM; m++) {
         const M = measures[m];
         const m0 = M.start, mLen = M.len, m1 = m0 + mLen, B = M.mi.B;
-        const head = M.showMeter ? `[M:${meterStr(M.mi)}] ` : '';
+        const clefChange = plan && plan[m] !== (m ? plan[m - 1] : defClef) ? `[K:clef=${plan[m]}] ` : '';
+        const head = (M.showMeter ? `[M:${meterStr(M.mi)}] ` : '') + clefChange;
         while (j < chords.length && chords[j].e <= m0) j++;
         if (j >= chords.length || chords[j].s >= m1) {
           out.push(head + (primary && !(pickup && m === 0) ? 'z' + mLen : 'x' + mLen));
@@ -1734,6 +1753,7 @@ const Engraver = (() => {
         }
         const acc = {};
         let str = '', p = m0, k = j, afterRest = false;
+        const mMarks = [];
         while (p < m1) {
           while (k < chords.length && chords[k].e <= p) k++;
           const c = chords[k];
@@ -1750,43 +1770,116 @@ const Engraver = (() => {
               written = len;
             }
             const last = p + len >= end;
+            const ott = sounding && c.ott !== undefined;
             const tok = sounding
-              ? chordStr(c.p, acc) + written + (!last || c.e > m1 ? '-' : '')
+              ? chordStr(ott ? c.p.map((x) => x - 12) : c.p, acc) + written + (!last || c.e > m1 ? '-' : '')
               : (primary || pre || isTrip(beat) ? 'z' : 'x') + written;   // abcjs 不接受三連音裡的隱形休止符
             // 休止符前後一律斷開符桿，避免橫樑跨過（隱形）休止符
             if (str && ((p - m0) % B === 0 || !sounding || afterRest)) str += ' ';
+            if (ott) mMarks.push({ off: str.length + pre.length, rid: c.ott });
             str += pre + tok;
             afterRest = !sounding;
             p += len;
           }
         }
+        mMarks.forEach((mk) => marks.push({ m, off: mk.off + head.length, rid: mk.rid }));
         out.push(head + str);
       }
       return out;
     }
 
+    // 高音譜的極高音段落改用 8va（降一個八度記譜），避免一堆加線
+    let ottavaCount = 0;
+    function markOttava(vs, plan) {
+      // 以小節為單位判斷：小節內音高的中位數在 C6 以上、最低音在 G4 以上（降八度後仍好讀）才標 8va
+      // 旋律只是偶爾碰到高音的小節維持原樣，跟出版譜的習慣一致
+      const all = vs.flat();
+      const measureAt = (pos) => {
+        let lo = 0, hi = nM - 1;
+        while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (measures[mid].start <= pos) lo = mid; else hi = mid - 1; }
+        return lo;
+      };
+      const per = Array.from({ length: nM }, () => []);
+      all.forEach((c) => { per[measureAt(c.s)].push(...c.p); });
+      const minOf = (m) => (per[m].length ? Math.min(...per[m]) : 0);
+      const marked = per.map((ps, m) => {
+        if (ps.length < 2 || plan[m] !== 'treble') return false;
+        const sorted = ps.slice().sort((a, b) => a - b);
+        return sorted[sorted.length >> 1] >= 84 && sorted[0] >= 67;
+      });
+      // 夾在兩個 8va 小節中間、音域也夠高的單一小節併入，避免括線斷斷續續
+      for (let m = 1; m < nM - 1; m++) {
+        if (!marked[m] && marked[m - 1] && marked[m + 1] && minOf(m) >= 67 && plan[m] === 'treble') marked[m] = true;
+      }
+      const runId = new Array(nM).fill(-1);
+      for (let m = 0; m < nM; m++) if (marked[m]) runId[m] = m > 0 && marked[m - 1] ? runId[m - 1] : ottavaCount++;
+      all.forEach((c) => { const r = runId[measureAt(c.s)]; if (r >= 0) c.ott = r; });
+    }
+    // 依每小節的音域決定譜號：低音譜遇到高音域改用高音譜號，高音譜遇到低音域改用低音譜號（有遲滯，避免頻繁切換）
+    function clefPlan(vs, st) {
+      const chords = vs.flat().sort((a, b) => a.s - b.s);
+      const plan = [];
+      let cur = st === 0 ? 'treble' : 'bass', j = 0;
+      for (let m = 0; m < nM; m++) {
+        const m0 = measures[m].start, m1 = m0 + measures[m].len;
+        while (j < chords.length && chords[j].e <= m0) j++;
+        let mn = 128, mx = 0, sum = 0, n = 0;
+        for (let k = j; k < chords.length && chords[k].s < m1; k++) {
+          if (chords[k].e <= m0) continue;
+          chords[k].p.forEach((x) => { mn = Math.min(mn, x); mx = Math.max(mx, x); sum += x; n++; });
+        }
+        if (n) {
+          const avg = sum / n;
+          if (st === 1) {
+            if (cur === 'bass' && mn >= 55 && avg >= 62) cur = 'treble';
+            else if (cur === 'treble' && (mn < 52 || avg < 57)) cur = 'bass';
+          } else {
+            if (cur === 'treble' && mx <= 60 && avg < 54) cur = 'bass';
+            else if (cur === 'bass' && (mx > 64 || avg >= 58)) cur = 'treble';
+          }
+        }
+        plan.push(cur);
+      }
+      return plan;
+    }
     const defs = [], bodies = [], groups = [];
     let vid = 0;
     [0, 1].forEach((st) => {
       const vs = voicesFor(st);
       if (!vs.length) return;
+      const plan = clefPlan(vs, st);
+      if (st === 0) markOttava(vs, plan);
       const ids = [];
       vs.forEach((ch, vi) => {
         vid++;
         ids.push(vid);
         const stem = vs.length > 1 ? (vi === 0 ? ' stem=up' : ' stem=down') : '';
-        defs.push(`V:${vid} clef=${st === 0 ? 'treble' : 'bass'}${stem}`);
-        bodies.push({ id: vid, measures: writeVoice(ch, vi === 0) });
+        defs.push(`V:${vid} clef=${plan[0]}${stem}`);   // 第一小節的譜號直接寫在聲部定義（abcjs 不接受開頭就換譜號）
+        const marks = [];
+        bodies.push({ id: vid, measures: writeVoice(ch, vi === 0, marks, plan, plan[0]), marks });
       });
       groups.push(ids.length > 1 ? `(${ids.join(' ')})` : String(ids[0]));
     });
     const scoreLine = groups.length > 1 ? `%%score {${groups.join(' | ')}}` : `%%score ${groups[0]}`;
     // 每個聲部寫成一整行，換行交給 abcjs 依寬度自動處理
-    const body = bodies.map((v) => `[V:${v.id}] ${v.measures.join(' | ')} |]`).join('\n');
-    const abc = [
+    const headText = [
       'X:1', `M:${meterStr(measures[0].mi)}`, 'L:1/96', '%%measurenb 0', scoreLine, ...defs,
-      `K:${ki.name}${key.minor ? 'm' : ''}`, body,
+      `K:${ki.name}${key.minor ? 'm' : ''}`,
     ].join('\n');
+    // 記下 8va 段落中每個音在 ABC 文字裡的位置，排版後才能找到對應的 SVG 元素畫括線
+    const ottava = [];
+    let pos = headText.length + 1;
+    const lines = bodies.map((v) => {
+      const prefix = `[V:${v.id}] `;
+      const starts = [];
+      let q = pos + prefix.length;
+      v.measures.forEach((ms) => { starts.push(q); q += ms.length + 3; });
+      v.marks.forEach((mk) => ottava.push({ char: starts[mk.m] + mk.off, rid: mk.rid }));
+      const line = `${prefix}${v.measures.join(' | ')} |]`;
+      pos += line.length + 1;
+      return line;
+    });
+    const abc = headText + '\n' + lines.join('\n');
     return {
       abc,
       measures: nM - (pickup ? 1 : 0),
@@ -1796,6 +1889,7 @@ const Engraver = (() => {
       keyFromFile: key.fromFile,
       meter: meterStr(measures[0].mi),
       meterChanges,
+      ottava,
       triplets: trip.size,
     };
   }
@@ -1911,6 +2005,7 @@ const ScoreView = (() => {
         if (Number.isFinite(n)) el.textContent = String(n - 1);
       });
     }
+    drawOttava();
     const svg = paper.querySelector('svg');
     cursor = document.createElementNS(NS, 'line');
     cursor.setAttribute('class', 'score-cursor');
@@ -1921,6 +2016,52 @@ const ScoreView = (() => {
     lastTop = null;
     setStatus('');
     metaEl.textContent = metaText();
+  }
+  function drawOttava() {
+    const svg = paper.querySelector('svg');
+    if (!svg || !built.ottava || !built.ottava.length) return;
+    const byChar = new Map();
+    (visual.lines || []).forEach((line, li) => (line.staff || []).forEach((st) => (st.voices || []).forEach((v) => v.forEach((el) => {
+      if (el && el.startChar !== undefined && el.abselem && el.abselem.elemset) byChar.set(el.startChar, { li, els: el.abselem.elemset });
+    }))));
+    const segs = new Map();                        // rid → (line → 範圍)
+    built.ottava.forEach((o) => {
+      const hit = byChar.get(o.char);
+      if (!hit) return;
+      if (!segs.has(o.rid)) segs.set(o.rid, new Map());
+      const m = segs.get(o.rid);
+      hit.els.forEach((el) => {
+        if (!el || !el.getBBox) return;
+        let b;
+        try { b = el.getBBox(); } catch (e) { return; }
+        if (!b.width && !b.height) return;
+        const r = m.get(hit.li) || { x0: Infinity, x1: -Infinity, y0: Infinity };
+        r.x0 = Math.min(r.x0, b.x); r.x1 = Math.max(r.x1, b.x + b.width); r.y0 = Math.min(r.y0, b.y);
+        m.set(hit.li, r);
+      });
+    });
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'ottava');
+    segs.forEach((m) => {
+      const lis = [...m.keys()].sort((a, b) => a - b);
+      lis.forEach((li, idx) => {
+        const r = m.get(li);
+        const y = Math.max(12, r.y0 - 8);
+        const txt = document.createElementNS(NS, 'text');
+        txt.setAttribute('x', r.x0);
+        txt.setAttribute('y', y);
+        txt.textContent = idx === 0 ? '8va' : '(8va)';
+        g.appendChild(txt);
+        svg.appendChild(g);
+        const tw = txt.getComputedTextLength ? txt.getComputedTextLength() : 18;
+        const x1 = r.x0 + tw + 4, x2 = Math.max(x1 + 6, r.x1);
+        const line = document.createElementNS(NS, 'path');
+        const last = idx === lis.length - 1;
+        line.setAttribute('d', `M${x1} ${y - 4}H${x2}` + (last ? `v7` : ''));
+        g.appendChild(line);
+      });
+    });
+    if (g.childNodes.length) svg.appendChild(g);
   }
   function onClick(abcelem) {
     if (!song || !abcelem || abcelem.startChar === undefined) return;
