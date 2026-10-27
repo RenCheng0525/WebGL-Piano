@@ -334,6 +334,44 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
   .chk span { display: none; }
 }
 
+/* 樂譜面板：五線譜／簡譜切換與簡譜選項 */
+.nseg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--btn); gap: 2px; margin-right: 4px; }
+.nseg button { border: 0; border-radius: 7px; padding: 4px 9px; background: none; font-size: 12.5px; color: var(--muted); }
+.nseg button[aria-pressed="true"] { background: var(--felt); color: var(--felt-ink); font-weight: 500; }
+.tab-opts { display: none; align-items: center; gap: 4px; }
+#score.is-tab .tab-opts { display: inline-flex; }
+.tab-opts select { padding: 4px 6px; font-size: 12.5px; }
+@media (max-width: 760px) { .tab-opts select { max-width: 118px; } }
+@media (max-width: 560px) {
+  .score-head { flex-wrap: wrap; row-gap: 4px; }
+  .score-tools { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
+  #view-tools .icon-btn { width: 36px; height: 36px; }
+  .tab-opts select { max-width: 104px; }
+}
+.jp-head { margin: 4px 0 10px; }
+.jp-title { text-align: center; font-weight: 700; font-size: 1.3em; margin-bottom: 4px; }
+.jp-key { display: flex; gap: 1.2em; font-weight: 500; }
+.jp-line { display: block; overflow: visible; margin-bottom: 4px; }
+.jp-line text, .jp-line circle, .jp-line rect { fill: var(--ink); }
+.jp-line .jp-hit { fill: transparent; cursor: pointer; }
+.jp-line .jp-mn { fill: var(--muted); }
+.jp-line .jp-arc { fill: none; stroke: var(--ink); stroke-width: 1.1; }
+.jp-line .jp-ev { cursor: pointer; }
+.jp-line .hl text, .jp-line .hl circle, .jp-line .hl rect:not(.jp-hit) { fill: var(--felt); }
+#score-paper .jp-line .hl .jp-hit, #score-paper .jp-line .jp-hit { fill: transparent; }
+
+/* 視角工具列：縮放、俯視／立體、移動視角、重設 */
+#view-tools {
+  position: fixed; right: 12px; bottom: 96px;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 4px; border-radius: 14px; z-index: 4;
+}
+#view-tools .icon-btn { width: 40px; height: 40px; background: transparent; }
+#view-tools .icon-btn:hover { background: var(--btn-hover); }
+#view-tools .icon-btn[aria-pressed="true"] { background: var(--felt); color: var(--felt-ink); }
+#view-tools .tool-sep { height: 1px; margin: 2px 6px; background: var(--rail); }
+body.nav-mode #stage canvas { cursor: move !important; }
+
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @media (max-width: 760px) {
@@ -381,8 +419,22 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
 
 <section id="score" hidden aria-labelledby="score-title">
   <div class="score-head">
-    <div class="score-info"><strong id="score-title" data-i18n="score.title">五線譜</strong><span id="score-meta"></span></div>
+    <div class="score-info"><strong id="score-title" data-i18n="score.title">樂譜</strong><span id="score-meta"></span></div>
     <div class="score-tools">
+      <div class="nseg" id="notation-seg" role="group" data-i18n-aria="score.notation">
+        <button data-notation="staff" aria-pressed="true" data-i18n="score.staff">五線譜</button>
+        <button data-notation="jianpu" aria-pressed="false" data-i18n="score.jianpu">簡譜</button>
+      </div>
+      <div class="tab-opts">
+        <select id="tab-num" data-i18n-aria="tab.num">
+          <option value="movable" data-i18n="tab.movable">首調</option>
+          <option value="fixed" data-i18n="tab.fixed">固定調（1 = C）</option>
+        </select>
+        <select id="tab-voices" data-i18n-aria="tab.voices">
+          <option value="melody" data-i18n="tab.melody">只旋律</option>
+          <option value="both" data-i18n="tab.both">旋律加伴奏</option>
+        </select>
+      </div>
       <label class="chk" data-i18n-title="score.followTip" title="播放時自動捲動到目前的行"><input type="checkbox" id="score-follow" checked><span data-i18n="score.follow">跟隨播放</span></label>
       <button class="icon-btn" id="zoom-out" data-i18n-aria="score.zoomOut" data-i18n-title="score.zoomOut" aria-label="縮小樂譜" title="縮小">−</button>
       <button class="icon-btn" id="zoom-in" data-i18n-aria="score.zoomIn" data-i18n-title="score.zoomIn" aria-label="放大樂譜" title="放大">+</button>
@@ -412,6 +464,23 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
   <button class="text-btn" id="midi-in-btn" data-i18n="hint.midi">連接 MIDI 鍵盤</button>
   <span class="sep"></span>
   <button class="text-btn" id="view-btn" data-i18n="hint.view">重設視角</button>
+</div>
+
+<div id="view-tools" class="panel" role="toolbar" data-i18n-aria="view.tools" aria-label="視角">
+  <button class="icon-btn" id="zoom-in-btn" data-i18n-aria="view.zoomIn" data-i18n-title="view.zoomIn" aria-label="放大" title="放大">
+    <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+  </button>
+  <button class="icon-btn" id="zoom-out-btn" data-i18n-aria="view.zoomOut" data-i18n-title="view.zoomOut" aria-label="縮小" title="縮小">
+    <svg viewBox="0 0 24 24"><path d="M5 11h14v2H5z"/></svg>
+  </button>
+  <div class="tool-sep"></div>
+  <button class="icon-btn" id="move-btn" aria-pressed="false" data-i18n-aria="view.move" data-i18n-title="view.moveTip" aria-label="移動視角" title="移動視角">
+    <svg viewBox="0 0 24 24"><path d="M12 2l3.5 3.5-1.4 1.4L13 5.8V11h5.2l-1.1-1.1 1.4-1.4L22 12l-3.5 3.5-1.4-1.4 1.1-1.1H13v5.2l1.1-1.1 1.4 1.4L12 22l-3.5-3.5 1.4-1.4 1.1 1.1V13H5.8l1.1 1.1-1.4 1.4L2 12l3.5-3.5 1.4 1.4L5.8 11H11V5.8L9.9 6.9 8.5 5.5z"/></svg>
+  </button>
+  <button class="icon-btn" id="view-mode-btn" aria-label="切換視角"></button>
+  <button class="icon-btn" id="reset-view-btn" data-i18n-aria="hint.view" data-i18n-title="hint.view" aria-label="重設視角" title="重設視角">
+    <svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 1-7.7 10h2.1A6 6 0 1 0 8 7.5L10.5 10H4V3.5l2.6 2.6A8 8 0 0 1 12 4z"/></svg>
+  </button>
 </div>
 
 <div id="bar" class="panel">
@@ -450,6 +519,9 @@ body.resizing, body.resizing * { cursor: row-resize !important; user-select: non
     <label class="field vol"><span class="label" data-i18n="volume">音量</span>
       <input type="range" id="volume" min="0" max="100" value="80" data-i18n-aria="volume" aria-label="音量">
     </label>
+    <button class="icon-btn" id="theme-btn" aria-label="主題">
+      <svg viewBox="0 0 24 24" id="theme-icon"></svg>
+    </button>
     <button class="icon-btn" id="lang-btn" lang="en" aria-label="Switch to English" title="Switch to English">EN</button>
     <button class="icon-btn" id="score-btn" aria-label="顯示五線譜" aria-pressed="false" data-i18n-title="score.title" title="五線譜" disabled>
       <svg viewBox="0 0 24 24"><path d="M2 5h12v1.2H2zm0 3.4h12v1.2H2zm0 3.4h12v1.2H2zm0 3.4h9v1.2H2zm0 3.4h9v1.2H2zM18 3h4.5v3.2H19.6v10.3a3.1 3.1 0 1 1-1.6-2.7z"/></svg>
@@ -491,7 +563,30 @@ const I18N = {
     'load.loading': '正在載入鋼琴音色…',
     'load.ready': '鋼琴音色已就緒',
     'load.error': '鋼琴音色載入失敗，請重新整理頁面再試一次。',
-    'score.title': '五線譜',
+    'score.title': '樂譜',
+    'score.staff': '五線譜',
+    'score.jianpu': '簡譜',
+    'score.notation': '樂譜種類',
+    'tab.num': '簡譜數字依據',
+    'tab.fixed': '固定調（1 = C）',
+    'tab.movable': '首調',
+    'tab.voices': '簡譜聲部',
+    'tab.melody': '只旋律',
+    'tab.both': '旋律加伴奏',
+    'score.convertingTab': '正在排簡譜…',
+    'score.metaTab': '1 = {tonic}，{ts}，共 {m} 小節，點數字可跳到該處',
+    'theme.auto': '主題：跟隨系統（點一下改成淺色）',
+    'theme.light': '主題：淺色（點一下改成深色）',
+    'theme.dark': '主題：深色（點一下改成跟隨系統）',
+    'view.tools': '視角',
+    'view.zoomIn': '放大（+）',
+    'view.zoomOut': '縮小（−）',
+    'view.move': '移動視角',
+    'view.moveTip': '移動視角：開啟時拖曳會移動畫面，不會按到琴鍵（Esc 關閉）',
+    'view.moveOn': '移動視角：拖曳移動畫面，雙指縮放。再按一次回到彈奏。',
+    'view.moveOff': '回到彈奏',
+    'view.to.3d': '改成立體視角',
+    'view.to.top': '改成俯視（音符直直落到琴鍵上）',
     'score.follow': '跟隨播放',
     'score.followTip': '播放時自動捲動到目前的行',
     'score.zoomOut': '縮小樂譜',
@@ -499,8 +594,8 @@ const I18N = {
     'score.close': '關閉五線譜',
     'score.resize': '拖曳調整樂譜與鋼琴的大小',
     'score.resizeTip': '拖曳調整大小，連點兩下恢復預設',
-    'score.show': '顯示五線譜',
-    'score.hide': '隱藏五線譜',
+    'score.show': '顯示樂譜',
+    'score.hide': '隱藏樂譜',
     'score.converting': '正在把 MIDI 轉成五線譜…',
     'score.failed': '這首曲子無法轉成五線譜。',
     'score.failedClosed': '這首曲子無法轉成五線譜，已收起樂譜面板。',
@@ -568,7 +663,30 @@ const I18N = {
     'load.loading': 'Loading piano sounds…',
     'load.ready': 'Piano sounds ready',
     'load.error': 'Piano sounds failed to load. Reload the page to try again.',
-    'score.title': 'Sheet music',
+    'score.title': 'Score',
+    'score.staff': 'Staff',
+    'score.jianpu': 'Numbered',
+    'score.notation': 'Notation',
+    'tab.num': 'Numbers based on',
+    'tab.fixed': 'Fixed (1 = C)',
+    'tab.movable': 'Movable do',
+    'tab.voices': 'Parts',
+    'tab.melody': 'Melody only',
+    'tab.both': 'Melody and accompaniment',
+    'score.convertingTab': 'Laying out the numbered notation…',
+    'score.metaTab': '1 = {tonic}, {ts}, {m} measures. Click a number to jump there.',
+    'theme.auto': 'Theme: system (click for light)',
+    'theme.light': 'Theme: light (click for dark)',
+    'theme.dark': 'Theme: dark (click for system)',
+    'view.tools': 'View',
+    'view.zoomIn': 'Zoom in (+)',
+    'view.zoomOut': 'Zoom out (−)',
+    'view.move': 'Move view',
+    'view.moveTip': 'Move view: dragging moves the view instead of pressing keys (Esc to exit)',
+    'view.moveOn': 'Move view: drag to move, pinch to zoom. Tap again to go back to playing.',
+    'view.moveOff': 'Back to playing',
+    'view.to.3d': 'Switch to 3D view',
+    'view.to.top': 'Switch to top-down view (notes fall straight onto the keys)',
     'score.follow': 'Follow playback',
     'score.followTip': 'Scroll to the current line during playback',
     'score.zoomOut': 'Zoom out',
@@ -576,8 +694,8 @@ const I18N = {
     'score.close': 'Close sheet music',
     'score.resize': 'Drag to resize the sheet music and the piano',
     'score.resizeTip': 'Drag to resize. Double-click to reset.',
-    'score.show': 'Show sheet music',
-    'score.hide': 'Hide sheet music',
+    'score.show': 'Show score',
+    'score.hide': 'Hide score',
     'score.converting': 'Converting MIDI to sheet music…',
     'score.failed': 'This piece couldn’t be converted to sheet music.',
     'score.failedClosed': 'This piece couldn’t be converted to sheet music, so the panel was closed.',
@@ -810,17 +928,32 @@ applyTheme();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
+// 視角模式：立體（斜前方）或俯視（正上方，音符直直落到琴鍵上，像 Synthesia）
+const VIEW_KEY = 'piano.view';
+const VIEWS = { '3d': new THREE.Vector3(0, 0.8, 0.6).normalize(), top: new THREE.Vector3(0, 1, 0.07).normalize() };
+let viewFrac = 1;   // 畫面高度中沒被播放列蓋住的比例（以 setViewOffset 的完整畫框為準）
+let viewMode = (() => { try { const v = localStorage.getItem(VIEW_KEY); if (VIEWS[v]) return v; } catch (e) { /* 預設立體 */ } return '3d'; })();
 function fitCamera() {
   const aspect = camera.aspect;
   const vf = THREE.MathUtils.degToRad(camera.fov);
   const hf = 2 * Math.atan(Math.tan(vf / 2) * aspect);
   const narrow = aspect < 1;
-  // 直式螢幕只框住中央約兩個半八度，其餘可用雙指平移
-  let d = (narrow ? 10 : HALF + 5) / Math.tan(hf / 2);
-  d = Math.min(Math.max(d, 22), 110);
-  controls.target.set(narrow ? keys.get(62).x : 0, 0, narrow ? -5 : -3.5);
-  const dir = new THREE.Vector3(0, 0.8, 0.6).normalize();
-  camera.position.copy(controls.target).addScaledVector(dir, d);
+  const cx = narrow ? keys.get(62).x : 0;
+  let d;
+  if (viewMode === 'top') {
+    // 俯視：寬度要放進整排鍵盤（直式螢幕只放中央約兩個半八度），深度要放進琴鍵到跑道盡頭
+    const zNear = 3.4, zFar = Z0 - ROLL - 0.5;
+    const halfW = narrow ? 10 : HALF + 2;
+    d = Math.max(halfW / Math.tan(hf / 2), ((zNear - zFar) / 2) / (Math.tan(vf / 2) * viewFrac));
+    d = Math.min(Math.max(d, 18), 130);
+    controls.target.set(cx, 0, (zNear + zFar) / 2);
+  } else {
+    // 直式螢幕只框住中央約兩個半八度，其餘可用雙指平移
+    d = (narrow ? 10 : HALF + 5) / Math.tan(hf / 2);
+    d = Math.min(Math.max(d, 22), 110);
+    controls.target.set(cx, 0, narrow ? -5 : -3.5);
+  }
+  camera.position.copy(controls.target).addScaledVector(VIEWS[viewMode], d);
   controls.update();
 }
 fitCamera();
@@ -832,14 +965,101 @@ function onStageResize() {
   const barTop = $('#bar').getBoundingClientRect().top;
   const off = Math.max(0, Math.round(stageEl.getBoundingClientRect().bottom - barTop + 40));
   camera.aspect = w / (h + off);
+  viewFrac = Math.max(0.2, (h - off + 40) / (h + off));
   camera.setViewOffset(w, h + off, 0, off, w, h);
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  // 視角工具列放在播放列上方；音軌面板不能蓋到它
+  const tools = $('#view-tools');
+  tools.style.bottom = Math.round(window.innerHeight - barTop + 10) + 'px';
+  fitTracksPanel();
   if (!userMovedCamera) fitCamera();
+}
+function fitTracksPanel() {
+  const panel = $('#tracks'), tools = $('#view-tools');
+  if (!panel || panel.hidden) return;
+  const room = tools.getBoundingClientRect().top - panel.getBoundingClientRect().top - 12;
+  panel.style.maxHeight = Math.max(120, room) + 'px';
 }
 window.addEventListener('resize', onStageResize);
 onStageResize();
-$('#view-btn').addEventListener('click', () => { userMovedCamera = false; fitCamera(); });
+function resetView() { userMovedCamera = false; fitCamera(); }
+$('#view-btn').addEventListener('click', resetView);
+$('#reset-view-btn').addEventListener('click', resetView);
+
+function setViewMode(v) {
+  if (!VIEWS[v]) return;
+  viewMode = v;
+  try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* 只在這次有效 */ }
+  refreshViewButton();
+  resetView();
+}
+function refreshViewButton() {
+  const b = $('#view-mode-btn');
+  const next = viewMode === 'top' ? '3d' : 'top';
+  b.innerHTML = viewMode === 'top'
+    ? '<svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7zm0 2.3 6.6 3.7L12 11.7 5.4 8zM5 9.7l6 3.4v6.6l-6-3.4zm8 10V13.1l6-3.4v6.6z"/></svg>'
+    : '<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zm2 2v12h3V6zm5 0v12h2V6zm4 0v12h3V6z"/></svg>';
+  b.setAttribute('aria-label', t('view.to.' + next));
+  b.title = t('view.to.' + next);
+}
+$('#view-mode-btn').addEventListener('click', () => setViewMode(viewMode === 'top' ? '3d' : 'top'));
+
+// 以螢幕上的某一點為中心縮放：那一點底下的東西縮放後仍留在原位（滾輪縮放到游標處）
+const zoomPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.3);
+const zoomRay = new THREE.Raycaster();
+function zoomAt(factor, clientX, clientY) {
+  const cam = camera.position, tgt = controls.target;
+  const d = cam.distanceTo(tgt);
+  const nd = Math.min(controls.maxDistance, Math.max(controls.minDistance, d * factor));
+  if (Math.abs(nd - d) < 1e-6) return;
+  const f = nd / d;
+  let pivot = tgt.clone();
+  if (clientX !== undefined) {
+    const r = renderer.domElement.getBoundingClientRect();
+    zoomRay.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), camera);
+    const hitP = zoomRay.ray.intersectPlane(zoomPlane, new THREE.Vector3());
+    if (hitP && hitP.distanceTo(cam) < controls.maxDistance * 2) pivot = hitP;
+  }
+  cam.sub(pivot).multiplyScalar(f).add(pivot);
+  tgt.sub(pivot).multiplyScalar(f).add(pivot);
+  userMovedCamera = true;
+  controls.update();
+}
+// 滾輪：在 window 的 capture 階段攔截，改成縮放到游標處（OrbitControls 原本只會朝畫面中心縮放）
+window.addEventListener('wheel', (e) => {
+  if (e.target !== renderer.domElement) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+  zoomAt(Math.exp(Math.max(-120, Math.min(120, dy)) * (e.ctrlKey ? 0.006 : 0.0018)), e.clientX, e.clientY);   // ctrlKey：觸控板雙指縮放
+}, { capture: true, passive: false });
+$('#zoom-in-btn').addEventListener('click', () => zoomAt(0.8));
+$('#zoom-out-btn').addEventListener('click', () => zoomAt(1.25));
+
+// 主題：跟隨系統 → 淺色 → 深色，記在這個瀏覽器
+const THEME_KEY = 'piano.theme';
+const THEME_ICONS = {
+  auto: '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 2v14a7 7 0 0 1 0-14z"/>',
+  light: '<path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM11 1h2v3h-2zm0 19h2v3h-2zM1 11h3v2H1zm19 0h3v2h-3zM4.2 5.6l1.4-1.4 2.1 2.1-1.4 1.4zm12.1 12.1 1.4-1.4 2.1 2.1-1.4 1.4zM4.2 18.4l2.1-2.1 1.4 1.4-2.1 2.1zM16.3 6.3l2.1-2.1 1.4 1.4-2.1 2.1z"/>',
+  dark: '<path d="M14.5 2.5A9.5 9.5 0 1 0 21.5 15 7.5 7.5 0 0 1 14.5 2.5z"/>',
+};
+let theme = (() => { try { const v = localStorage.getItem(THEME_KEY); if (THEME_ICONS[v]) return v; } catch (e) { /* 預設跟隨系統 */ } return 'auto'; })();
+function setTheme(v) {
+  theme = v;
+  if (v === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', v);
+  try { localStorage.setItem(THEME_KEY, v); } catch (e) { /* 只在這次有效 */ }
+  refreshThemeButton();
+}
+function refreshThemeButton() {
+  const b = $('#theme-btn');
+  $('#theme-icon').innerHTML = THEME_ICONS[theme];
+  b.setAttribute('aria-label', t('theme.' + theme));
+  b.title = t('theme.' + theme);
+}
+$('#theme-btn').addEventListener('click', () => setTheme({ auto: 'light', light: 'dark', dark: 'auto' }[theme]));
+setTheme(theme);
 
 // ───────────────────────── 琴鍵狀態
 function refreshKey(k) {
@@ -1443,6 +1663,7 @@ function renderTracks(autoOpen = true) {
 }
 function setTracksOpen(open) {
   $('#tracks').hidden = !open;
+  if (open) requestAnimationFrame(fitTracksPanel);
   $('#tracks-btn').setAttribute('aria-expanded', String(open));
   $('#tracks-btn').setAttribute('aria-label', t(open ? 'tracks.hide' : 'tracks.show'));
 }
@@ -1564,8 +1785,24 @@ function pickKey(e) {
   return hit ? hit.object.userData.midi : null;
 }
 const pointers = new Map();   // pointerId → midi
+function releaseAllPointers() {
+  pointers.forEach((m) => { if (m !== null) liveOff(m); });
+  pointers.clear();
+}
+// 移動視角模式：開啟時滑鼠左鍵與單指都改成平移畫面，雙指縮放，碰到琴鍵也不會發聲
+let navMode = false;
+function setNavMode(on, announce = true) {
+  navMode = on;
+  releaseAllPointers();
+  controls.mouseButtons.LEFT = on ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+  controls.touches.ONE = on ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+  document.body.classList.toggle('nav-mode', on);
+  $('#move-btn').setAttribute('aria-pressed', String(on));
+  if (announce) toast(t(on ? 'view.moveOn' : 'view.moveOff'));
+}
+$('#move-btn').addEventListener('click', () => setNavMode(!navMode));
 window.addEventListener('pointerdown', (e) => {
-  if (e.target !== renderer.domElement || e.button > 0) return;
+  if (navMode || e.target !== renderer.domElement || e.button > 0) return;
   const m = pickKey(e);
   if (m === null) return;
   e.stopPropagation();         // 不讓 OrbitControls 開始旋轉
@@ -1612,6 +1849,9 @@ window.addEventListener('keydown', (e) => {
     if (!e.repeat) togglePlay();
     return;
   }
+  if (e.code === 'Escape' && navMode) { setNavMode(false); return; }
+  const zoomKey = { Equal: 0.8, NumpadAdd: 0.8, Minus: 1.25, NumpadSubtract: 1.25 }[e.code];
+  if (zoomKey) { e.preventDefault(); zoomAt(zoomKey); return; }
   if (e.repeat) { if (KEYMAP[e.code] !== undefined) e.preventDefault(); return; }
   if (e.code === 'KeyZ' || e.code === 'KeyX') {
     octave = Math.max(1, Math.min(7, octave + (e.code === 'KeyZ' ? -1 : 1)));
@@ -1834,9 +2074,9 @@ const Engraver = (() => {
     // 2. 分配到高音譜或低音譜
     const tr = song.tracks;
     const mean = new Map();
-    tr.forEach((t) => {
-      const ns = notes.filter((n) => n.track === t);
-      mean.set(t, ns.reduce((a, n) => a + n.midi, 0) / Math.max(1, ns.length));
+    tr.forEach((trk) => {
+      const ns = notes.filter((n) => n.track === trk);
+      mean.set(trk, ns.reduce((a, n) => a + n.midi, 0) / Math.max(1, ns.length));
     });
     let staffOf;
     if (tr.length === 2) {
@@ -2136,11 +2376,314 @@ const Engraver = (() => {
       meter: meterStr(measures[0].mi),
       meterChanges,
       ottava,
+      // 給簡譜（TabView）用的量化結果：小節、格點、音符、調性
+      tab: { U, measures, items, key, ki, pickup, gridOf },
       triplets: trip.size,
     };
   }
 
   return { build, spell, keyInfo };
+})();
+
+// ───────────────────────── 簡譜（TabView；與卡林巴版共用）
+const TabView = (() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const NAT_DEG = { 0: 1, 2: 2, 4: 3, 5: 4, 7: 5, 9: 6, 11: 7 };
+  // 首調的變化音：大調常見的寫法 ♯1 ♭3 ♯4 ♯5 ♭7（與 Engraver 的拼法一致）
+  const MOVABLE_ACC = { 1: [1, 1], 3: [-1, 3], 6: [1, 4], 8: [1, 5], 10: [-1, 7] };
+  const MAJ_NAMES = ['C♭', 'G♭', 'D♭', 'A♭', 'E♭', 'B♭', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯'];
+  const MAJ_PC = [11, 6, 1, 8, 3, 10, 5, 0, 7, 2, 9, 4, 11, 6, 1];
+  const mod12 = (m) => ((m % 12) + 12) % 12;
+  const el = (name, attrs, parent) => {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+
+  // 一個音的簡譜寫法：音級 1–7、升降（+1／−1）、八度（0 不加點，正數上方加點，負數下方加點）
+  function glyphOf(midi, tonicMidi, fixed) {
+    const pc = mod12(midi - tonicMidi);
+    let deg, alter = 0;
+    if (NAT_DEG[pc]) deg = NAT_DEG[pc];
+    else if (fixed) { alter = 1; deg = NAT_DEG[pc - 1]; }      // 依音片：與 34 音上層的刻字一樣寫成升記號
+    else [alter, deg] = MOVABLE_ACC[pc];
+    return { deg, alter, oct: Math.floor((midi - alter - tonicMidi) / 12) };
+  }
+
+  // 由量化後的音符整理出聲部：旋律取「天際線」（持續中的高音不會被下方新出現的音切斷），其餘是伴奏
+  function streams(tab, withAcc) {
+    const { U, items } = tab;
+    const byS = new Map();
+    items.forEach((i) => { if (!byS.has(i.s)) byS.set(i.s, []); byS.get(i.s).push(i); });
+    const mel = [], acc = [];
+    let cur = null;
+    [...byS.keys()].sort((a, b) => a - b).forEach((s) => {
+      const g = byS.get(s).slice().sort((a, b) => b.midi - a.midi);
+      let rest = g;
+      if (!cur || s >= cur.e || g[0].midi >= cur.p[0]) {
+        cur = { s, e: g[0].e, p: [g[0].midi] };
+        mel.push(cur);
+        rest = g.slice(1).filter((x) => x.midi !== g[0].midi);
+      }
+      if (withAcc && rest.length) {
+        const uniq = [...new Map(rest.map((x) => [x.midi, x])).values()];
+        acc.push({ s, e: Math.max(...uniq.map((x) => x.e)), p: uniq.map((x) => x.midi).sort((a, b) => a - b) });
+      }
+    });
+    // 每個聲部改成單音線：遇到下一個音就結束；斷奏造成的短空隙併入前一個音，譜面才不會滿是休止符
+    const mono = (ev) => {
+      for (let i = 0; i < ev.length - 1; i++) {
+        const a = ev[i], nx = ev[i + 1];
+        if (a.e > nx.s) a.e = nx.s;
+        const gap = nx.s - a.e;
+        if (gap > 0 && gap <= U / 2 && gap <= Math.max(U / 4, (a.e - a.s) / 2)) a.e = nx.s;
+      }
+      return ev.filter((x) => x.e > x.s);
+    };
+    return withAcc ? [mono(mel), mono(acc)] : [mono(mel)];
+  }
+
+  // 把一段 [s, e) 切成可以直接寫出的時值（以四分音符為一拍，格點單位 U）
+  function split(s, e, isRest, tab) {
+    const { U, gridOf } = tab;
+    const out = [];
+    while (s < e - 1e-9) {
+      const beat = Math.floor(s / U), bs = beat * U, off = s - bs;
+      let len, lines = 0, dot = false, dashes = 0, trip = false;
+      if (gridOf(beat) === 3) {
+        len = Math.min(e - s, U / 3 - (off % (U / 3)) || U / 3);
+        lines = len < U / 3 - 1e-9 ? 2 : 1;
+        trip = true;
+      } else if (off === 0 && e - s >= U) {
+        const k = Math.floor((e - s) / U + 1e-9);
+        if (isRest) len = U;                                                   // 長休止寫成多個 0
+        else if (k === 1 && e - s >= 1.5 * U - 1e-9 && gridOf(beat + 1) !== 3) { len = 1.5 * U; dot = true; }   // 附點四分
+        else { len = k * U; dashes = k - 1; }                                  // 每多一拍加一條增時線
+      } else {
+        // 拍內：附點八分、八分、附點十六分、十六分、三十二分（附點只在對齊時使用）
+        const room = Math.min(e - s, U - off);
+        const cands = [[0.75 * U, 1, true, U / 4], [0.5 * U, 1, false, U / 2], [0.375 * U, 2, true, U / 8], [0.25 * U, 2, false, U / 4], [0.125 * U, 3, false, U / 8]];
+        const c = cands.find(([L, , , al]) => L <= room + 1e-9 && Math.abs((off / al) - Math.round(off / al)) < 1e-9);
+        if (c) [len, lines, dot] = c; else { len = room; lines = 3; }
+      }
+      out.push({ s, len, lines, dot, dashes, trip });
+      s += len;
+    }
+    return out;
+  }
+
+  // 一個聲部在每個小節裡的記號（音、休止、增時線）
+  function entriesOf(stream, tab, row, tonicMidi, fixed) {
+    const { U, measures } = tab;
+    const out = [];
+    let j = 0;
+    measures.forEach((M, mi) => {
+      const m0 = M.start, m1 = M.start + M.len;
+      let p = m0;
+      const rest = (a, b) => split(a, b, true, tab).forEach((pt) => out.push({ ...pt, t: pt.s, kind: 'rest', row, mi }));
+      while (j < stream.length && stream[j].e <= m0) j++;
+      for (let k = j; k < stream.length && stream[k].s < m1; k++) {
+        const ev = stream[k];
+        if (ev.e <= m0) continue;
+        const a = Math.max(ev.s, m0), b = Math.min(ev.e, m1);
+        if (a > p) rest(p, a);
+        split(a, b, false, tab).forEach((pt, n) => {
+          const attack = a === ev.s && n === 0;
+          out.push({ ...pt, t: pt.s, kind: 'note', row, mi, ev, attack, tieIn: !attack, g: ev.p.map((m) => glyphOf(m, tonicMidi, fixed)) });
+          for (let d = 1; d <= pt.dashes; d++) out.push({ t: pt.s + d * U, kind: 'dash', row, mi, ev, lines: 0 });
+        });
+        p = b;
+      }
+      if (p < m1) rest(p, m1);
+    });
+    return out;
+  }
+
+  // 純文字的簡譜（給測試與除錯）：' 為上方點、, 為下方點、_ 為減時線、. 為附點、- 為增時線、~ 為連結、[3] 為三連音
+  function textOf(entries, tab) {
+    let str = '', mi = 0;
+    entries.forEach((x) => {
+      if (x.mi !== mi) { str += ' |'; mi = x.mi; }
+      let tok;
+      if (x.kind === 'dash') tok = '-';
+      else {
+        const one = (g) => (g.alter > 0 ? '#' : g.alter < 0 ? 'b' : '') + g.deg + (g.oct > 0 ? "'".repeat(g.oct) : ','.repeat(-g.oct));
+        tok = x.kind === 'rest' ? '0' : (x.g.length > 1 ? '<' + x.g.map(one).join(' ') + '>' : one(x.g[0]));
+        tok = (x.tieIn ? '~' : '') + tok + (x.dot ? '.' : '') + '_'.repeat(x.lines) + (x.trip ? '[3]' : '');
+      }
+      str += ' ' + tok;
+    });
+    return (str + ' |').trim();
+  }
+
+  function render(paper, tab, song, opts) {
+    const z = opts.zoom;
+    const fs = 19 * z, STEP = fs + 9 * z, ABOVE = 24 * z, BELOW = 26 * z;
+    const fixed = opts.fixed;
+    const fifths = Math.max(-7, Math.min(7, tab.key.fifths));
+    const tonicPc = fixed ? 0 : MAJ_PC[fifths + 7];
+    const tonicMidi = 60 + tonicPc;
+    const tonicName = fixed ? 'C' : MAJ_NAMES[fifths + 7];
+    const st = streams(tab, opts.accomp);
+    const rows = st.map((sm, r) => entriesOf(sm, tab, r, tonicMidi, fixed));
+    const U = tab.U;
+
+    // 每個小節的欄位：兩行（旋律、伴奏）同一時間點對齊在同一欄
+    const wOf = (x) => (x.kind === 'dash' ? fs * 0.9 : fs * 0.66 + (x.g && x.g.some((g) => g.alter) ? fs * 0.42 : 0) + (x.dot ? fs * 0.38 : 0) + 7 * z);
+    const meas = tab.measures.map((M, mi) => ({ M, mi, cols: new Map(), rows: rows.map(() => []) }));
+    rows.forEach((ents, r) => ents.forEach((x) => {
+      const m = meas[x.mi];
+      m.rows[r].push(x);
+      m.cols.set(x.t, Math.max(m.cols.get(x.t) || 22 * z, wOf(x)));
+    }));
+    meas.forEach((m) => {
+      m.times = [...m.cols.keys()].sort((a, b) => a - b);
+      m.head = (m.M.showMeter ? 30 * z : 0) + 10 * z;
+      m.w = m.head + m.times.reduce((a, tt) => a + m.cols.get(tt), 0) + 8 * z;
+    });
+    // 依面板寬度換行，每行盡量排滿再平均拉開
+    const W = Math.max(260, opts.width - 8);
+    const lines = [];
+    let cur = [], used = 0;
+    meas.forEach((m) => {
+      if (cur.length && used + m.w > W) { lines.push(cur); cur = []; used = 0; }
+      cur.push(m); used += m.w;
+    });
+    if (cur.length) lines.push(cur);
+
+    paper.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'jp';
+    const head = document.createElement('div');
+    head.className = 'jp-head';
+    head.innerHTML = `<div class="jp-title"></div><div class="jp-key"><span class="jp-k"></span><span class="jp-ts"></span></div>`;
+    head.querySelector('.jp-title').textContent = opts.title;
+    head.querySelector('.jp-k').textContent = `1 = ${tonicName}`;
+    head.querySelector('.jp-ts').textContent = `${tab.measures[tab.pickup && tab.measures.length > 1 ? 1 : 0].mi.ts.join('/')}`;
+    head.style.fontSize = `${14 * z}px`;
+    wrap.appendChild(head);
+    paper.appendChild(wrap);
+
+    const events = rows.map(() => []);
+    const ticks = [];                  // 進度直條的位置：{ t, x, line, svg, end }，播放時在相鄰兩點之間內插
+    const noteEls = new Map();         // 記號 → 畫出來的 <g>（連結線要用到位置）
+    const tiePending = [];
+    lines.forEach((ln, li) => {
+      const total = ln.reduce((a, m) => a + m.w, 0);
+      const stretch = li < lines.length - 1 ? Math.min(1.9, W / total) : Math.min(1.25, W / total);
+      // 每一行裡每個聲部的和弦最多幾個音，決定這行的高度
+      const stacks = rows.map((_, r) => Math.max(1, ...ln.flatMap((m) => m.rows[r].map((x) => (x.g ? x.g.length : 1)))));
+      const rowTop = [], base = [];
+      let y = 6 * z;
+      stacks.forEach((sk, r) => {
+        rowTop[r] = y;
+        base[r] = y + ABOVE + (sk - 1) * STEP + fs * 0.72;
+        y = base[r] + BELOW + (r < stacks.length - 1 ? 6 * z : 0);
+      });
+      const H = y + 4 * z;
+      const svg = el('svg', { class: 'jp-line', width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+      svg.dataset.line = li;
+      svg.dataset.y1 = rowTop[0] + ABOVE - fs * 0.95;
+      svg.dataset.y2 = base[base.length - 1] + 9 * z;
+      wrap.appendChild(svg);
+      let x = 0;
+      if (true) el('text', { class: 'jp-mn', x: 1, y: rowTop[0] + 8 * z, 'font-size': 9 * z }, svg).textContent = String(ln[0].mi + (tab.pickup ? 0 : 1));
+      ln.forEach((m, k) => {
+        const colX = new Map();
+        let cx = x + m.head * stretch;
+        if (m.M.showMeter) {
+          const [a, b] = m.M.mi.ts;
+          el('text', { class: 'jp-ts-ch', x: x + 14 * z, y: base[0] - fs * 0.28, 'font-size': 11 * z, 'text-anchor': 'middle' }, svg).textContent = `${a}/${b}`;
+        }
+        m.times.forEach((tt) => { const w = m.cols.get(tt) * stretch; colX.set(tt, cx + w / 2); cx += w; });
+        const xEnd = x + m.w * stretch;
+        m.rows.forEach((ents, r) => {
+          const b0 = base[r];
+          ents.forEach((e) => {
+            const gx = colX.get(e.t);
+            ticks.push({ t: e.t, x: gx - fs * 0.45, line: li, svg, end: 0 });
+            const g = el('g', { class: 'jp-ev' + (e.kind === 'dash' ? ' jp-dash' : '') }, svg);
+            g.dataset.t = e.t;
+            if (e.kind === 'dash') {
+              el('rect', { x: gx - fs * 0.3, y: b0 - fs * 0.36, width: fs * 0.6, height: Math.max(1.5, 1.8 * z), rx: 0.6 }, g);
+            } else {
+              // 和弦由低到高往上疊（ev.p 已由低到高排序），0 是最低音
+              const glyphs = e.kind === 'rest' ? [{ deg: 0, alter: 0, oct: 0 }] : e.g;
+              glyphs.forEach((gl, kIdx) => {
+                const yy = b0 - kIdx * STEP;
+                el('text', { x: gx, y: yy, 'font-size': fs, 'text-anchor': 'middle', class: 'jp-d' }, g).textContent = String(gl.deg);
+                if (gl.alter) el('text', { x: gx - fs * 0.42, y: yy - fs * 0.32, 'font-size': fs * 0.62, 'text-anchor': 'middle', class: 'jp-acc' }, g).textContent = gl.alter > 0 ? '♯' : '♭';
+                for (let d = 0; d < gl.oct; d++) el('circle', { cx: gx, cy: yy - fs * 0.86 - d * 4.6 * z, r: 1.6 * z }, g);
+                const lowBase = kIdx === 0 ? yy + 5 * z + e.lines * 4 * z + 2.5 * z : yy + 5 * z;
+                for (let d = 0; d < -gl.oct; d++) el('circle', { cx: gx, cy: lowBase + d * 4.6 * z, r: 1.6 * z }, g);
+              });
+              if (e.dot) el('circle', { cx: gx + fs * 0.46, cy: b0 - fs * 0.3, r: 1.7 * z }, g);
+              // 點擊區
+              const hTop = b0 - (glyphs.length - 1) * STEP - fs * 1.05;
+              el('rect', { x: gx - fs * 0.5, y: hTop, width: fs, height: b0 - hTop + 12 * z, fill: 'transparent', class: 'jp-hit' }, g);
+              e.x = gx; e.yTop = b0 - (glyphs.length - 1) * STEP - fs * 0.78 - (glyphs[glyphs.length - 1].oct > 0 ? glyphs[glyphs.length - 1].oct * 4.6 * z : 0);
+              e.line = li; e.svg = svg; e.xEnd = xEnd; e.xLineEnd = W; e.el = g;
+              noteEls.set(e, g);
+              if (e.kind === 'rest' || e.attack) events[r].push({ t: e.t, el: g, line: li, svg });
+              if (e.kind === 'note' && e.tieIn) tiePending.push(e);
+            }
+          });
+          // 減時線：同一拍（複拍子是附點四分）裡的音連成一條，每一層各畫一次
+          const B = m.M.mi.B;
+          const groupOf = (e) => Math.floor((e.t - m.M.start) / B + 1e-9);
+          const seq = ents.filter((e) => e.kind !== 'dash');
+          for (let L = 1; L <= 3; L++) {
+            let run = null;
+            const flush = () => { if (run) el('rect', { x: run.x0 - fs * 0.34, y: b0 + 4 * z + (L - 1) * 4 * z, width: run.x1 - run.x0 + fs * 0.68, height: Math.max(1.3, 1.6 * z) }, svg); run = null; };
+            seq.forEach((e) => {
+              if (e.lines >= L) {
+                if (run && run.g === groupOf(e)) run.x1 = e.x;
+                else { flush(); run = { g: groupOf(e), x0: e.x, x1: e.x }; }
+              } else flush();
+            });
+            flush();
+          }
+          // 三連音：同一拍的三連音上方標 3 並加弧線
+          const trips = new Map();
+          seq.forEach((e) => { if (e.trip) { const bt = Math.floor(e.t / U); if (!trips.has(bt)) trips.set(bt, []); trips.get(bt).push(e); } });
+          trips.forEach((arr) => {
+            const x0 = arr[0].x, x1 = arr[arr.length - 1].x, yy = Math.min(...arr.map((e) => e.yTop)) - 9 * z;
+            el('path', { d: `M${x0 - 4 * z} ${yy + 3 * z} Q${(x0 + x1) / 2} ${yy - 5 * z} ${x1 + 4 * z} ${yy + 3 * z}`, class: 'jp-arc' }, svg);
+            el('text', { x: (x0 + x1) / 2, y: yy - 3 * z, 'font-size': 10 * z, 'text-anchor': 'middle', class: 'jp-3' }, svg).textContent = '3';
+          });
+        });
+        ticks.push({ t: m.M.start + m.M.len, x: xEnd - 3 * z, line: li, svg, end: 1 });
+        // 小節線（最後一小節畫終止線）
+        const yA = rowTop[0] + ABOVE - fs * 0.35, yB = base[base.length - 1] + 8 * z;
+        const last = m.mi === tab.measures.length - 1;
+        el('rect', { x: xEnd - (last ? 5 * z : 1), y: yA, width: Math.max(1, 1.1 * z), height: yB - yA, class: 'jp-bar' }, svg);
+        if (last) el('rect', { x: xEnd - 2.6 * z, y: yA, width: 2.6 * z, height: yB - yA, class: 'jp-bar' }, svg);
+        x = xEnd;
+      });
+    });
+    // 連結線：從前一個記號連到這一個；跨行時拆成兩段
+    tiePending.forEach((e) => {
+      const prev = rows[e.row].slice(0, rows[e.row].indexOf(e)).reverse().find((x) => x.kind === 'note' && x.ev === e.ev);
+      if (!prev || prev.x === undefined) return;
+      const arc = (svg, x0, x1, yy) => el('path', { d: `M${x0} ${yy} Q${(x0 + x1) / 2} ${yy - 7 * z} ${x1} ${yy}`, class: 'jp-arc jp-tie' }, svg);
+      const yy = Math.min(prev.yTop, e.yTop) - 2 * z;
+      if (prev.line === e.line) arc(e.svg, prev.x + 3 * z, e.x - 3 * z, yy);
+      else { arc(prev.svg, prev.x + 3 * z, prev.xLineEnd - 2, prev.yTop - 2 * z); arc(e.svg, 4, e.x - 3 * z, e.yTop - 2 * z); }
+    });
+    wrap.addEventListener('click', (ev) => {
+      const g = ev.target.closest('.jp-ev');
+      if (g && opts.onSeek) opts.onSeek(parseFloat(g.dataset.t) / U);
+    });
+    events.forEach((arr) => arr.sort((a, b) => a.t - b.t));
+    // 同一時間有好幾個點時：小節線排在下一小節的第一個記號之前；同一欄只留一個
+    ticks.sort((a, b) => a.t - b.t || b.end - a.end || a.x - b.x);
+    const tk = ticks.filter((x, i) => !i || x.t !== ticks[i - 1].t || x.end !== ticks[i - 1].end || x.line !== ticks[i - 1].line);
+    // 每個起音的（格點時間, 音高）：測試用來和五線譜逐音比對
+    const attacks = rows.flatMap((r) => r.filter((x) => x.kind === 'note' && x.attack).flatMap((x) => x.ev.p.map((m) => [x.t, m])));
+    return { events, ticks: tk, tonicName, lines: lines.length, text: rows.map((r) => textOf(r, tab)), U, attacks };
+  }
+  return { render, glyphOf };
 })();
 
 const ScoreView = (() => {
@@ -2149,6 +2692,11 @@ const ScoreView = (() => {
   const status = $('#score-status'), metaEl = $('#score-meta'), btn = $('#score-btn');
   const follow = $('#score-follow');
   let open = false, built = null, builtFor = null, visual = null, pendingFor = null, autoOpened = false;
+  // 簡譜：五線譜／簡譜切換、數字依據（依音片／首調）、聲部（只旋律／加伴奏）
+  let notation = (() => { try { return localStorage.getItem('piano.notation') === 'jianpu' ? 'jianpu' : 'staff'; } catch (e) { return 'staff'; } })();
+  let tabNum = null;            // null：依模式自動（改編依音片、原曲首調）
+  let tabVoices = 'melody';
+  let pendingNotation = null, builtNotation = null, engravedFor = null, tabRes = null, tabIdx = [-1, -1], tabHl = [];
   // MusicXML 樂譜改用 OpenSheetMusicDisplay 排版（需要時才載入）
   const OSMD_URL = 'https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@2.2.0/build/opensheetmusicdisplay.min.js';
   let mode = 'abc', osmd = null, osmdLoading = null, stamps = [], curIdx = 0, xmlMeasures = 0;
@@ -2201,9 +2749,9 @@ const ScoreView = (() => {
     setStatus('');
     metaEl.textContent = metaText();
   }
-  function syncXml(t) {
+  function syncXml(sec) {
     if (!osmd || !stamps.length) return;
-    const qn = song.secToBeat(t);
+    const qn = song.secToBeat(sec);
     let lo = 0, hi = stamps.length - 1, idx = 0;
     while (lo <= hi) { const mid = (lo + hi) >> 1; if (stamps[mid] <= qn + 1e-3) { idx = mid; lo = mid + 1; } else hi = mid - 1; }
     const c = osmd.cursor;
@@ -2264,48 +2812,58 @@ const ScoreView = (() => {
   }
   function metaText() {
     if (mode === 'xml') return t('score.metaXml', { m: fmtNum(xmlMeasures) });
+    if (mode === 'tab' && tabRes && built) return t('score.metaTab', { tonic: tabRes.tonicName, ts: t('ts', { ts: built.meter, n: built.meterChanges }), m: fmtNum(built.measures) });
     if (!built) return '';
     const keyStr = t(built.keyMinor ? 'key.minor' : 'key.major', { tonic: built.keyTonic }) + (built.keyFromFile ? '' : t('key.detected'));
     return t('score.meta', { key: keyStr, ts: t('ts', { ts: built.meter, n: built.meterChanges }), m: fmtNum(built.measures) });
   }
   function ensure() {
     if (!song) return;
-    if (builtFor !== song) {
-      if (pendingFor === song) return;
+    if (builtFor !== song || builtNotation !== notation) {
+      if (pendingFor === song && pendingNotation === notation) return;
       pendingFor = song;
+      pendingNotation = notation;
       visual = null;
+      tabRes = null;
       paper.innerHTML = '';
       metaEl.textContent = '';
       const target = song;
-      if (song.meta && song.meta.xml) {
+      if (notation === 'staff' && song.meta && song.meta.xml && !song.arranged) {
         setStatus('score.loadingXml');
         renderXml(false).then(() => {
           pendingFor = null;
           builtFor = target;
+          builtNotation = 'staff';
           built = null;
+          engravedFor = null;
         }).catch((err) => {
           console.error(err);
           pendingFor = null;
           builtFor = target;
+          builtNotation = 'staff';
           osmd = null;
           setStatus('score.failedXml');
           if (autoOpened) { setOpen(false); toast(t('score.failedXml'), true); }
         });
         return;
       }
-      mode = 'abc';
+      mode = notation === 'jianpu' ? 'tab' : 'abc';
       osmd = null;
-      setStatus('score.converting');
+      setStatus(mode === 'tab' ? 'score.convertingTab' : 'score.converting');
+      const targetNotation = notation;
       setTimeout(() => {
         pendingFor = null;
-        if (target !== song) return;
+        if (target !== song || targetNotation !== notation) { ensure(); return; }
         try {
-          built = Engraver.build(song);
+          if (engravedFor !== song) { built = Engraver.build(song); engravedFor = song; }
           builtFor = song;
-          render();
+          builtNotation = notation;
+          if (mode === 'tab') renderTab(); else render();
         } catch (err) {
           console.error(err);
           builtFor = song;
+          builtNotation = notation;
+          engravedFor = null;
           built = null;
           setStatus('score.failed');
           if (autoOpened) {
@@ -2316,10 +2874,85 @@ const ScoreView = (() => {
       }, 30);
     } else if (mode === 'xml' && osmd) {
       renderXml(true).catch((err) => console.error(err));
+    } else if (mode === 'tab') {
+      if (!tabRes && built) renderTab();
     } else if (!visual && built) {
       render();
     }
   }
+  // 簡譜排版：寬度、縮放、數字依據、聲部改變時重排
+  function renderTab() {
+    if (!built) return;
+    const width = body.clientWidth - 24;
+    if (width <= 0) return;
+    renderedWidth = width;
+    visual = null; events = []; cursor = null; hlEls = []; lastIdx = -1; lastTop = null;
+    const fixed = (tabNum || (song.arranged ? 'fixed' : 'movable')) === 'fixed';
+    tabRes = TabView.render(paper, built.tab, song, {
+      fixed, accomp: tabVoices === 'both', zoom: zoom * (width < 620 ? 0.9 : 1.05), width, title: songTitle(song),
+      // 排版完先把進度直條放到目前的位置（暫停時切換也看得到）
+      onSeek: (q) => seek(song.beatToSec(q)),
+    });
+    tabIdx = [-1, -1]; tabHl = []; tabCursor = null;
+    $('#tab-num').value = fixed ? 'fixed' : 'movable';
+    setStatus('');
+    metaEl.textContent = metaText();
+    syncTab(songTime());
+  }
+  // 播放同步：目前的音變色、進度直條移動，換行時自動捲動
+  let tabCursor = null;
+  function moveTabCursor(q) {
+    const tk = tabRes.ticks;
+    if (!tk.length) return;
+    if (!tabCursor) { tabCursor = document.createElementNS(NS, 'line'); tabCursor.setAttribute('class', 'score-cursor'); }
+    let lo = 0, hi = tk.length - 1, i = -1;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (tk[mid].t <= q + 1e-6) { i = mid; lo = mid + 1; } else hi = mid - 1; }
+    if (i < 0) { tabCursor.setAttribute('visibility', 'hidden'); return; }
+    const a = tk[i], b = tk[i + 1];
+    let x = a.x;
+    // 下一個點在同一行時依時間內插；它是小節線時會正好在小節結束那一刻抵達
+    if (b && b.line === a.line && b.t > a.t) x = a.x + (b.x - a.x) * Math.min(1, Math.max(0, (q - a.t) / (b.t - a.t)));
+    if (tabCursor.parentNode !== a.svg) a.svg.appendChild(tabCursor);
+    tabCursor.setAttribute('x1', x); tabCursor.setAttribute('x2', x);
+    tabCursor.setAttribute('y1', a.svg.dataset.y1); tabCursor.setAttribute('y2', a.svg.dataset.y2);
+    tabCursor.setAttribute('visibility', 'visible');
+  }
+  function syncTab(sec) {
+    if (!tabRes) return;
+    const q = song.secToBeat(sec) * tabRes.U;
+    moveTabCursor(q);
+    let lineChanged = null;
+    tabRes.events.forEach((arr, r) => {
+      let lo = 0, hi = arr.length - 1, idx = -1;
+      while (lo <= hi) { const mid = (lo + hi) >> 1; if (arr[mid].t <= q + 0.5) { idx = mid; lo = mid + 1; } else hi = mid - 1; }
+      if (idx === tabIdx[r]) return;
+      if (tabHl[r]) tabHl[r].classList.remove('hl');
+      tabIdx[r] = idx;
+      tabHl[r] = idx >= 0 ? arr[idx].el : null;
+      if (tabHl[r]) tabHl[r].classList.add('hl');
+      if (r === 0) lineChanged = idx >= 0 ? arr[idx] : { line: 0, svg: paper.querySelector('.jp-line') };
+    });
+    if (lineChanged && lineChanged.line !== lastTop && follow.checked) {
+      lastTop = lineChanged.line;
+      // 第一行捲回最上面，標題才看得到；其他行上方留一點空間
+      const y = lineChanged.line === 0 ? 0 : lineChanged.svg.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 36;
+      body.scrollTo({ top: Math.max(0, y), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+    }
+  }
+  function setNotation(v) {
+    notation = v;
+    try { localStorage.setItem('piano.notation', v); } catch (e) { /* 只在這次有效 */ }
+    refreshNotationUi();
+    if (open) ensure();
+  }
+  function refreshNotationUi() {
+    document.querySelectorAll('#notation-seg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.notation === notation)));
+    panel.classList.toggle('is-tab', notation === 'jianpu');
+  }
+  $('#notation-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-notation]'); if (b && b.dataset.notation !== notation) setNotation(b.dataset.notation); });
+  $('#tab-num').addEventListener('change', (e) => { tabNum = e.target.value; e.target.blur(); if (mode === 'tab' && built) renderTab(); });
+  $('#tab-voices').addEventListener('change', (e) => { tabVoices = e.target.value; e.target.blur(); if (mode === 'tab' && built) renderTab(); });
+  refreshNotationUi();
   function render() {
     if (!built) return;
     const width = body.clientWidth - 24;
@@ -2425,10 +3058,11 @@ const ScoreView = (() => {
     const y = first ? 0 : r.top - body.getBoundingClientRect().top + body.scrollTop + top * scale - 40;   // 上方留給 8va 括線與小節編號
     body.scrollTo({ top: Math.max(0, y), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
   }
-  function sync(t) {
-    if (open && mode === 'xml' && builtFor === song) { syncXml(t); return; }
+  function sync(sec) {
+    if (open && mode === 'xml' && builtFor === song) { syncXml(sec); return; }
+    if (open && mode === 'tab' && builtFor === song) { syncTab(sec); return; }
     if (!open || !visual || builtFor !== song || !events.length) return;
-    const qn = song.secToBeat(t);
+    const qn = song.secToBeat(sec);
     let lo = 0, hi = events.length - 1, idx = -1;
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
@@ -2467,6 +3101,7 @@ const ScoreView = (() => {
     renderTimer = setTimeout(() => {
       if (!open || builtFor !== song) return;
       if (mode === 'xml' && osmd) renderXml(true).catch((err) => console.error(err));
+      else if (mode === 'tab' && built) renderTab();
       else if (built) render();
     }, 180);
   }
@@ -2530,8 +3165,12 @@ const ScoreView = (() => {
     refreshLang() {
       btn.setAttribute('aria-label', t(open ? 'score.hide' : 'score.show'));
       if (statusKey) status.textContent = t(statusKey);
-      if ((visual && built) || (mode === 'xml' && osmd)) metaEl.textContent = metaText();
+      if ((visual && built) || (mode === 'xml' && osmd) || tabRes) metaEl.textContent = metaText();
+      if (open && mode === 'tab' && tabRes && built) renderTab();
     },
+    // 播放版本改變時（原曲／改編），數字依據回到預設：改編依音片、原曲首調
+    modeChanged() { tabNum = null; },
+    setNotation, get notation() { return notation; }, get tab() { return tabRes; }, get mode() { return mode; }, get built() { return built; },
     get abc() { return built && built.abc; },
   };
 })();
@@ -2576,6 +3215,8 @@ function applyLanguage() {
   setTracksOpen(!$('#tracks').hidden);
   if (song) renderTracks(false);
   ScoreView.refreshLang();
+  refreshThemeButton();
+  refreshViewButton();
 }
 $('#lang-btn').addEventListener('click', () => {
   lang = lang === 'en' ? 'zh-Hant' : 'en';
